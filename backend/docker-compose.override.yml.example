@@ -1,0 +1,19 @@
+# Example override file for custom configuration
+# Copy this file to docker-compose.override.yml and modify as needed
+
+version: "3.9"
+
+services:
+  mysql:
+    environment:
+      MYSQL_ROOT_PASSWORD: your_secure_password
+      MYSQL_PASSWORD: your_secure_password
+      MYSQL_USER: tomoya
+    ports:
+      - "3307:3306"  # Change port if 3306 is already in use
+
+  app:
+    environment:
+      DB_PASSWORD: your_secure_password
+      APP_DEBUG: "false"  # Set to false in production
+

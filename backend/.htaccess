@@ -1,0 +1,25 @@
+# Force PHP 8.2 for Laravel Backend
+# This file should be in the root of backend folder (same level as public folder)
+
+# For cPanel/Shared Hosting - Force PHP 8.2
+<IfModule mod_suphp.c>
+    suPHP_ConfigPath /opt/alt/php82/usr/lib
+</IfModule>
+
+# Alternative method for shared hosting
+AddHandler application/x-httpd-php82 .php
+AddType application/x-httpd-php82 .php
+
+# Another alternative (uncomment if above doesn't work)
+# AddHandler php82-script .php
+# Action php82-script /cgi-bin/php82
+
+# Prevent directory listing
+Options -Indexes
+
+# Protect sensitive files
+<FilesMatch "^(\.env|\.git|composer\.(json|lock)|package\.json|yarn\.lock)$">
+    Order allow,deny
+    Deny from all
+</FilesMatch>
+

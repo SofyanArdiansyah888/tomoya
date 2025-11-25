@@ -1,0 +1,32 @@
+version: '3.8'
+
+services:
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tomoya-frontend
+    ports:
+      - "3000:80"
+    environment:
+      - NODE_ENV=production
+    volumes:
+      # Optional: for development, mount source code
+      # - ./src:/app/src
+      # - ./public:/app/public
+    networks:
+      - tomoya-network
+    restart: unless-stopped
+    depends_on:
+      - backend
+    # For development with hot reload
+    # Uncomment below and use docker-compose.dev.yml instead
+    # command: yarn dev
+    # volumes:
+    #   - .:/app
+    #   - /app/node_modules
+
+networks:
+  tomoya-network:
+    external: true
+
