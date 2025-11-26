@@ -2,7 +2,7 @@ import { Eye, Package } from 'lucide-react'
 import { Badge } from '../../components/ui/badge'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent } from '../../components/ui/card'
-import { formatPrice } from '../../lib/formatPrice'
+import { formatPrice, formatPriceWithDecimals } from '../../lib/formatPrice'
 import { HppMaterial } from '../../types/hpp'
 
 interface HppMaterialTableProps {
@@ -102,7 +102,7 @@ export const HppMaterialTable = ({
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="flex items-center space-x-2">
                       <span className="text-sm font-semibold text-green-600">
-                        {formatPrice((material.hpp ?? material.purchase_price))}
+                        {formatPriceWithDecimals((material.hpp ?? material.purchase_price), false, 2)}
                       </span>
                     </div>
                   </td>
@@ -116,7 +116,7 @@ export const HppMaterialTable = ({
                       )
                       return (
                         <span className="text-sm font-medium text-gray-900">
-                          {formatPrice(unitPrice)} / <Badge variant="secondary">{material.unit}</Badge>
+                          {formatPriceWithDecimals(unitPrice, false, 2)} / <Badge variant="secondary">{material.unit}</Badge>
                         </span>
                       )
                     })()}

@@ -265,9 +265,9 @@ class PesananController extends Controller
                     'deskripsi' => "Penjualan Kasir #{$pesanan->no_pesanan}",
                     'tanggal' => now()->toDateString(),
                     'referensi_id' => $pesanan->id,
-                    'referensi_type' => 'Pesanan',
+                    'referensi_type' => 'Pesanan',  
                     'metode_pembayaran' => $request->metode_pembayaran,
-                    'status' => 'confirmed'
+                    'status' => ($request->metode_pembayaran === 'cash') ? false : true
                 ]);
             }
 
@@ -401,7 +401,7 @@ class PesananController extends Controller
                         'referensi_id' => $pesanan->id,
                         'referensi_type' => 'Pesanan',
                         'metode_pembayaran' => $pesanan->metode_pembayaran,
-                        'status' => 'confirmed'
+                        'status' => ($pesanan->metode_pembayaran === 'cash') ? false : true
                     ]);
                 }
             }

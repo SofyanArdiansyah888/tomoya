@@ -20,6 +20,7 @@ class ArusKas extends Model
         'subtotal' => 'decimal:2',
         'uang_dibayar' => 'decimal:2',
         'kembalian' => 'decimal:2',
+        'status' => 'boolean', 
     ];
 
     protected static function boot()

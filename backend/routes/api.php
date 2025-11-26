@@ -131,6 +131,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('shift-kasir/current', [ShiftKasirController::class, 'getCurrentShift']);
     Route::get('shift-kasir', [ShiftKasirController::class, 'index']);
     Route::get('shift-kasir/{id}', [ShiftKasirController::class, 'show']);
+    Route::post('shift-kasir/{id}/input-pemasukan', [ShiftKasirController::class, 'inputPemasukan']);
+    Route::options('shift-kasir/{id}/input-pemasukan', function () {
+        return response()->noContent();
+    });
 
     // Dashboard data
     Route::get('dashboard/stats', function () {

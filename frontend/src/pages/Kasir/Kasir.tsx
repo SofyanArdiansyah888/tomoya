@@ -306,10 +306,11 @@ export const Kasir = () => {
   }
 
 
-  const foodCategories = (categories ? categories?.filter(item =>
-    !['Bahan Baku','Bahan Baku Kitchen'].includes(item?.nama || '')) : []) ?? []
+  const kategorix = categories as any
+  const foodCategories = (kategorix?.data ? kategorix?.data : kategorix)?.filter((item: any) =>
+    !['Bahan Baku','Bahan Baku Kitchen'].includes(item?.nama || ''))
 
-
+ 
 
   // Toggle favorite status using API
   const toggleFavorite = async (productId: number) => {
@@ -452,7 +453,7 @@ export const Kasir = () => {
                     <Heart className="h-4 w-4 text-pink-600" />
                     Menu Favorit ({favoriteCount})
                   </Button>
-                  {foodCategories?.map((category) => (
+                  {foodCategories?.map((category:any) => (
                     <Button
                       key={category.id}
                       variant={selectedCategory === category.id ? "default" : "outline"}
@@ -468,7 +469,7 @@ export const Kasir = () => {
                     </Button>
                   ))}
 
-                  {foodCategories.length === 0 && (
+                  {foodCategories?.length === 0 && (
                     <span className="text-sm text-gray-500">
                       Tidak ada kategori tersedia
                     </span>

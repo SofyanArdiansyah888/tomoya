@@ -2,7 +2,7 @@ import { Modal } from '../../components/ui/modal'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Badge } from '../../components/ui/badge'
 import { HppMaterial } from '../../types/hpp'
-import { formatPrice } from '../../lib/formatPrice'
+import { formatPrice, formatPriceWithDecimals } from '../../lib/formatPrice'
 import { Calendar, Package, Building } from 'lucide-react'
 
 interface HppMaterialDetailModalProps {
@@ -88,7 +88,7 @@ export const HppMaterialDetailModal = ({
               <div>
                 <label className="text-sm font-medium text-gray-500">HPP (Terbaru / Fallback)</label>
                 <p className="text-lg font-semibold text-green-600">
-                  {formatPrice((material.hpp ?? material.purchase_price))}
+                  {formatPriceWithDecimals((material.hpp ?? material.purchase_price), false, 2)}
                 </p>
               </div>
               <div>
@@ -101,7 +101,7 @@ export const HppMaterialDetailModal = ({
                         ? (base / material.nilai_konversi)
                         : base
                     )
-                    return formatPrice(unitPrice)
+                    return formatPriceWithDecimals(unitPrice, false, 2)
                   })()}
                 </p>
               </div>
