@@ -18,6 +18,7 @@ class ShiftKasirResource extends JsonResource
             'id' => $this->id,
             'user_id' => $this->user_id,
             'lokasi_id' => $this->lokasi_id,
+            'no_shift_kasir' => $this->no_shift_kasir,
             'saldo_awal' => (float) $this->saldo_awal,
             'saldo_akhir' => $this->saldo_akhir ? (float) $this->saldo_akhir : null,
             'total_penjualan_cash' => (float) $this->total_penjualan_cash,
@@ -107,6 +108,11 @@ class ShiftKasirResource extends JsonResource
                     ];
                 });
             }),
+            'has_input_pemasukan' => (bool) $this->arusKas()
+                ->where('jenis', 'pemasukan')
+                ->where('kategori', 'pemasukan_kasir')
+                ->where('sub_kategori', 'penjualan_kasir')
+                ->exists(),
         ];
     }
 }

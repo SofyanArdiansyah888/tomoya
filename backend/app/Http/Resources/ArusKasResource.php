@@ -32,6 +32,7 @@ class ArusKasResource extends JsonResource
             'referensi_type' => $this->referensi_type,
             'metode_pembayaran' => $this->metode_pembayaran,
             'metode_pembayaran_label' => $this->metode_pembayaran_label,
+            'status' => (bool) ($this->status ?? true),
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
             'lokasi' => $this->whenLoaded('lokasi', function () {

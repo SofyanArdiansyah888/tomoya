@@ -27,6 +27,11 @@ export const shiftService = {
   async getShiftDetail(id: number): Promise<ShiftDetail> {
     const response = await api.get(`/shift-kasir/${id}`)
     return response.data.data
+  },
+
+  async inputPemasukan(id: number, data: { jumlah: number; metode_pembayaran?: 'cash' | 'card' | 'qris' | 'other' }): Promise<any> {
+    const response = await api.post(`/shift-kasir/${id}/input-pemasukan`, data)
+    return response.data
   }
 }
 

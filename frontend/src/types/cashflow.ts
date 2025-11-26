@@ -20,6 +20,7 @@ export interface ArusKas {
   referensi_type?: string;
   metode_pembayaran: 'cash' | 'card' | 'qris' | 'other' | 'transfer' | 'kredit';
   metode_pembayaran_label: string;
+  status?: boolean;
   created_at: string;
   updated_at: string;
   lokasi?: {
@@ -56,6 +57,7 @@ export interface CashFlowFilters {
   date_from?: string;
   date_to?: string;
   search?: string;
+  status?: boolean;
   sort_by?: string;
   sort_order?: 'asc' | 'desc';
   page?: number;

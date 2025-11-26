@@ -23,6 +23,10 @@ class ArusKasController extends Controller
         $query = ArusKas::with(['lokasi'])
             ->where('user_id', $userId);
 
+        if ($request->has('status')) {
+            $query->where('status', $request->boolean('status'));
+        }
+
         // Filter by jenis
         if ($request->has('jenis') && $request->jenis) {
             $query->where('jenis', $request->jenis);
@@ -101,6 +105,9 @@ class ArusKasController extends Controller
         $userId = $user ? $user->id : 1; // Fallback untuk development
         
         $query = ArusKas::where('user_id', $userId);
+        if ($request->has('status')) {
+            $query->where('status', $request->boolean('status'));
+        }
 
         // Filter by date range
         if ($request->has('date_from') && $request->date_from && $request->has('date_to') && $request->date_to) {

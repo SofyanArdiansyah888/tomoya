@@ -33,9 +33,9 @@ return new class extends Migration
             $table->unsignedBigInteger('referensi_id')->nullable();
             $table->string('referensi_type', 50)->nullable();
             $table->enum('metode_pembayaran', ['cash', 'transfer', 'qris', 'kredit','debit'])->default('cash');
-            $table->enum('status', ['pending', 'confirmed', 'cancelled'])->default('confirmed');
+            // $table->enum('status', ['pending', 'confirmed', 'cancelled'])->default('confirmed');
             $table->timestamps();
-            
+             
             $table->index(['tanggal']);
             $table->index(['jenis']);
             $table->index(['kategori']);

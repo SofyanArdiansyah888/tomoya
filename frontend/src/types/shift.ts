@@ -21,6 +21,7 @@ export interface ShiftKasir {
   catatan: string | null;
   created_at: string;
   updated_at: string;
+  has_input_pemasukan?: boolean;
   user?: {
     id: number;
     name: string;

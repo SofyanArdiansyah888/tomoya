@@ -12,7 +12,8 @@ export const cashFlowService = {
     if (filters?.toko_id) params.append('toko_id', filters.toko_id.toString()) // Keep for backward compatibility
     if (filters?.date_from) params.append('date_from', filters.date_from)
     if (filters?.date_to) params.append('date_to', filters.date_to)
-    if (filters?.search) params.append('search', filters.search)
+    if (filters?.status !== undefined) params.append('status', String(filters.status))
+    if (filters?.search) params.append('search', filters.search) 
     if (filters?.sort_by) params.append('sort_by', filters.sort_by)
     if (filters?.sort_order) params.append('sort_order', filters.sort_order)
     if (filters?.page) params.append('page', filters.page.toString())
@@ -29,6 +30,7 @@ export const cashFlowService = {
     if (filters?.toko_id) params.append('toko_id', filters.toko_id.toString()) // Keep for backward compatibility
     if (filters?.date_from) params.append('date_from', filters.date_from)
     if (filters?.date_to) params.append('date_to', filters.date_to)
+    if (filters?.status !== undefined) params.append('status', String(filters.status))
     
     const response = await api.get(`/arus-kas/stats?${params.toString()}`)
     return response.data.data
