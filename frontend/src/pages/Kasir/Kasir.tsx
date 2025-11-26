@@ -306,7 +306,8 @@ export const Kasir = () => {
   }
 
 
-  const foodCategories = (categories ? categories?.filter(item => item?.nama != 'Bahan Baku') : []) ?? []
+  const foodCategories = (categories ? categories?.filter(item =>
+    !['Bahan Baku','Bahan Baku Kitchen'].includes(item?.nama || '')) : []) ?? []
 
 
 
@@ -340,7 +341,7 @@ export const Kasir = () => {
   // Check if shift exists and is open
   // currentShift can be null if no shift exists, or an object if shift exists
   // Also verify that the shift belongs to the correct location
-  const hasOpenShift = currentShift != null 
+  const hasOpenShift = currentShift != null
     && currentShift?.status === 'open'
     && (currentShift?.lokasi_id === DEFAULT_SHOP_LOCATION_ID || currentShift?.lokasi?.id === DEFAULT_SHOP_LOCATION_ID)
 
@@ -599,12 +600,12 @@ export const Kasir = () => {
               onRemoveItem={handleRemoveItem}
               onCheckout={handleCheckout}
               onPrintReceipt={() => printReceipt(
-                localCart, 
-                total, 
-                paymentMethod, 
-                notes, 
-                undefined, 
-                undefined, 
+                localCart,
+                total,
+                paymentMethod,
+                notes,
+                undefined,
+                undefined,
                 clientName,
                 typeof amountPaid === 'number' ? amountPaid : undefined,
                 kembalian > 0 ? kembalian : undefined
