@@ -2,7 +2,7 @@ import { ChefHat, Eye } from 'lucide-react'
 import { Badge } from '../../components/ui/badge'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent } from '../../components/ui/card'
-import { formatPrice } from '../../lib/formatPrice'
+import { formatPrice, formatPriceWithDecimals } from '../../lib/formatPrice'
 import { HppRecipe } from '../../types/hpp'
 
 interface HppResepTableProps {
@@ -102,7 +102,7 @@ export const HppResepTable = ({
                   </td>
 
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <span>{formatPrice(recipe.hpp.cost_per_unit)}</span>
+                    <span>{formatPriceWithDecimals(recipe.hpp.cost_per_unit, false, 2)}</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <Badge variant={recipe.is_active ? "default" : "secondary"}>

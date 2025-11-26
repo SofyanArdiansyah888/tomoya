@@ -26,11 +26,12 @@ class HppMaterialResource extends JsonResource
         $hppUnitPrice = $conversion > 0
             ? ($basePriceRaw / $conversion)
             : $basePriceRaw;
+        $hppUnitPrice = round($hppUnitPrice, 2);
 
         return [
             'id' => $this->id,
             'name' => $this->name,
-            'sku' => $this->sku,
+            'sku' => $this->sku, 
             'description' => $this->description,
             'category_id' => $this->category_id,
             'supplier_id' => $this->supplier_id,

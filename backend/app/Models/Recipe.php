@@ -58,9 +58,11 @@ class Recipe extends Model
             $materialHpp = ($conversion > 0)
                 ? ($materialHppRaw !== null ? ($materialHppRaw / $conversion) : null)
                 : ($materialHppRaw !== null ? $materialHppRaw : null);
+            $materialHpp = $materialHpp !== null ? round($materialHpp, 2) : null;
             
             // Use material HPP (with fallback to purchase_price); allow manual override via pivot cost if needed
             $costPerUnit = $materialHpp ?? ($recipeMaterial->cost ?? 0);
+            $costPerUnit = round($costPerUnit, 2);
             $quantity = (float) $recipeMaterial->quantity;
             $subtotal = $costPerUnit * $quantity;
 
@@ -78,6 +80,7 @@ class Recipe extends Model
         }
 
         $costPerUnit = $this->yield_quantity > 0 ? $totalHpp / $this->yield_quantity : 0;
+        $costPerUnit = round($costPerUnit, 2);
 
         return [
             'total_hpp' => $totalHpp,
