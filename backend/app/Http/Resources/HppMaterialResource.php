@@ -22,9 +22,10 @@ class HppMaterialResource extends JsonResource
             ->first();
 
         $conversion = $this->nilai_konversi ? (float) $this->nilai_konversi : 0.0;
-        $hppUnitPrice = ($latestHpp !== null && $conversion > 0)
-            ? ($latestHpp / $conversion)
-            : null;
+        $basePriceRaw = $latestHpp !== null ? (float) $latestHpp : (float) $this->purchase_price;
+        $hppUnitPrice = $conversion > 0
+            ? ($basePriceRaw / $conversion)
+            : $basePriceRaw;
 
         return [
             'id' => $this->id,
@@ -38,7 +39,7 @@ class HppMaterialResource extends JsonResource
             'nilai_konversi' => $conversion,
             'min_stock' => $this->min_stock,
             'is_active' => $this->is_active,
-            'hpp' => $latestHpp,
+            'hpp' => $basePriceRaw,
             'hpp_unit_price' => $hppUnitPrice,
             'latest_purchase' => $latestPurchase ? [
                 'id' => $latestPurchase->id,

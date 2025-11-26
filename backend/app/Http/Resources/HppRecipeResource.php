@@ -38,10 +38,10 @@ class HppRecipeResource extends JsonResource
                         'id' => $material->id,
                         'name' => $material->name,
                         'sku' => $material->sku,
-                        'unit' => $material->unit,
-                        'quantity' => $material->pivot->quantity,
-                        'unit' => $material->pivot->unit,
-                        'cost' => $material->pivot->cost ? (float) $material->pivot->cost : null,
+                        'unit' => $material->pivot?->unit ?? $material->unit,
+                        'quantity' => $material->pivot?->quantity,
+                        'cost' => $material->pivot && $material->pivot->cost !== null ? (float) $material->pivot->cost : null,
+                        'material_unit' => $material->unit,
                     ];
                 });
             }),

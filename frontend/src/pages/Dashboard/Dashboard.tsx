@@ -6,11 +6,14 @@ import { cashFlowService } from '../../services/cashflow'
 import { useUnpaidOrders } from '../../hooks/useOrders'
 import { formatPrice } from '../../lib/formatPrice'
 import { Badge } from '../../components/ui/badge'
+import { CategorySelect } from '../../components/forms/CategorySelect'
+import { useState, useMemo } from 'react'
 import { Button } from '../../components/ui/button'
 import { useNavigate } from 'react-router-dom'
 
 export const Dashboard = () => {
   const navigate = useNavigate()
+  const [selectedGudangCategory, setSelectedGudangCategory] = useState<number | string>("")
   
   // Get today's date range
   const today = new Date()
@@ -68,6 +71,13 @@ export const Dashboard = () => {
   })
 
   const lowStockGudangList = lowStockGudang || []
+  const filteredLowStockGudang = useMemo(() => {
+    if (!selectedGudangCategory || selectedGudangCategory === " ") return lowStockGudangList
+    return lowStockGudangList.filter((item: any) => {
+      const cid = Number(item.material?.category_id ?? item.material?.category?.id ?? -1)
+      return cid === Number(selectedGudangCategory)
+    })
+  }, [lowStockGudangList, selectedGudangCategory])
   const lowStockTokoList = lowStockToko || []
   const unpaidOrders = unpaidOrdersData?.data || []
   
@@ -311,10 +321,31 @@ export const Dashboard = () => {
         {/* Gudang Low Stock */}
         <Card>
           <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Warehouse className="h-5 w-5 text-red-600" />
-              Material Rendah - Gudang
-            </CardTitle>
+            <div className="flex items-center justify-between gap-3">
+              <CardTitle className="flex items-center gap-2">
+                <Warehouse className="h-5 w-5 text-red-600" />
+                Material Rendah - Gudang
+              </CardTitle>
+              <div className="w-48">
+                <CategorySelect
+                  value={selectedGudangCategory}
+                  onValueChange={(v) => {
+                    const num = typeof v === 'string' ? Number(v) : (v as number)
+                    setSelectedGudangCategory(Number.isFinite(num) ? num : "")
+                  }}
+                  placeholder="Semua Kategori"
+                  filterPredicate={(c: any) => c.nama?.toLowerCase().includes('bahan')}
+                />
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setSelectedGudangCategory(" ")}
+                className="shrink-0"
+              >
+                Reset
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
             {loadingGudang ? (
@@ -323,9 +354,9 @@ export const Dashboard = () => {
                   <div key={i} className="h-16 bg-gray-200 rounded animate-pulse"></div>
                 ))}
               </div>
-            ) : lowStockGudangList.length > 0 ? (
+            ) : filteredLowStockGudang.length > 0 ? (
               <div className="space-y-3">
-                {lowStockGudangList.map((item: any, index: number) => (
+                {filteredLowStockGudang.map((item: any, index: number) => (
                   <div
                     key={`${item.lokasi_id}-${item.material_id}-${index}`}
                     className={`flex items-center justify-between p-3 rounded-lg ${

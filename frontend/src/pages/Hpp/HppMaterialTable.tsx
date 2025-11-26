@@ -100,24 +100,26 @@ export const HppMaterialTable = ({
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {material.hpp !== null ? (
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-semibold text-green-600">
-                          {formatPrice(material.hpp)}
-                        </span>
-                      </div>
-                    ) : (
-                      <Badge variant="secondary">Belum ada pembelian</Badge>
-                    )}
+                    <div className="flex items-center space-x-2">
+                      <span className="text-sm font-semibold text-green-600">
+                        {formatPrice((material.hpp ?? material.purchase_price))}
+                      </span>
+                    </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    {material.hpp_unit_price !== undefined && material.hpp_unit_price !== null ? (
-                      <span className="text-sm font-medium text-gray-900">
-                        {formatPrice(material.hpp_unit_price)} / <Badge variant="secondary">{material.unit}</Badge>
-                      </span>
-                    ) : (
-                      <span className="text-sm text-gray-400">-</span>
-                    )}
+                    {(() => {
+                      const base = (material.hpp ?? material.purchase_price)
+                      const unitPrice = material.hpp_unit_price ?? (
+                        material.nilai_konversi && material.nilai_konversi > 0
+                          ? (base / material.nilai_konversi)
+                          : base
+                      )
+                      return (
+                        <span className="text-sm font-medium text-gray-900">
+                          {formatPrice(unitPrice)} / <Badge variant="secondary">{material.unit}</Badge>
+                        </span>
+                      )
+                    })()}
                   </td>
                   
                   <td className="px-6 py-4 whitespace-nowrap">

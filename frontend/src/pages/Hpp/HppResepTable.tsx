@@ -102,11 +102,7 @@ export const HppResepTable = ({
                   </td>
 
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {recipe.cost_per_unit ? (
-                      <span>{formatPrice(recipe.cost_per_unit)}</span>
-                    ) : (
-                      <span className="text-gray-400">-</span>
-                    )}
+                    <span>{formatPrice(recipe.hpp.cost_per_unit)}</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <Badge variant={recipe.is_active ? "default" : "secondary"}>
