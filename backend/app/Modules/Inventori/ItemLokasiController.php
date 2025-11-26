@@ -524,7 +524,8 @@ class ItemLokasiController extends Controller
                             'purchase_price' => (float) $material->purchase_price,
                             'min_stock' => $minStock,
                             'min_stok_gudang' => $material->min_stok_gudang ?? 0,
-                        ],
+                            'category_id' => $material->category_id, 
+                        ], 
                         'last_updated' => $latestRecord && $latestRecord->tanggal ? $latestRecord->tanggal->toIso8601String() : null,
                     ];
                 }

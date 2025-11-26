@@ -1,23 +1,24 @@
 import { useQuery } from '@tanstack/react-query'
 import { useState, useMemo } from 'react'
 import { Search } from 'lucide-react'
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue
 } from '../ui/select-primitives'
 import { categoryService } from '../../services/category'
 
 interface CategorySelectProps {
-  value?: number
+  value?: number | string
   onValueChange?: (value: string | number) => void
   placeholder?: string
   disabled?: boolean
   className?: string
   error?: string
   searchable?: boolean
+  filterPredicate?: (category: any) => boolean
 }
 
 export const CategorySelect = ({
@@ -27,10 +28,11 @@ export const CategorySelect = ({
   disabled = false,
   className,
   error,
-  searchable = true
+  searchable = true,
+  filterPredicate
 }: CategorySelectProps) => {
   const [searchTerm, setSearchTerm] = useState('')
-  
+
   const { data: categories, isLoading, error: queryError } = useQuery({
     queryKey: ['categories'],
     queryFn: () => categoryService.getCategories()
@@ -38,11 +40,15 @@ export const CategorySelect = ({
 
   // Filter categories based on search term
   const filteredCategories = useMemo(() => {
-    if (!searchable || !searchTerm) return categories?.data || []
-    return categories?.data?.filter(category =>
+    const source = categories?.data || []
+    const byPredicate = filterPredicate ? source.filter(filterPredicate) : source
+    if (!searchable) return byPredicate
+    if (!searchTerm && (value === undefined || value === null)) return []
+    if (!searchTerm) return byPredicate
+    return byPredicate.filter((category: any) =>
       category.nama.toLowerCase().includes(searchTerm.toLowerCase())
-    ) || []
-  }, [categories?.data, searchTerm, searchable])
+    )
+  }, [categories?.data, searchTerm, searchable, filterPredicate, value])
 
   return (
     <div className="w-full">
@@ -69,7 +75,7 @@ export const CategorySelect = ({
               </div>
             </div>
           )}
-          
+
           {isLoading ? (
             <div className="p-4 text-center text-sm text-gray-500">
               Memuat...
@@ -83,15 +89,27 @@ export const CategorySelect = ({
               {searchable && searchTerm ? "Tidak ada hasil" : "Tidak ada kategori"}
             </div>
           ) : (
-            filteredCategories.map((category) => (
+            <>
               <SelectItem
-                key={category.id}
-                value={String(category.id)}
-                disabled={!category.is_active}
+                key={0}
+                value=" "
+                disabled={false}
               >
-                {category.nama}
+                Semua Kategori
               </SelectItem>
-            ))
+              {
+                filteredCategories.map((category) => (
+                  <SelectItem
+                    key={category.id}
+                    value={String(category.id)}
+                    disabled={!category.is_active}
+                  >
+                    {category.nama}
+                  </SelectItem>
+                ))
+              }
+            </>
+
           )}
         </SelectContent>
       </Select>
