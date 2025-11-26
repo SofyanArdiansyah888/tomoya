@@ -86,24 +86,24 @@ export const HppMaterialDetailModal = ({
                 </p>
               </div>
               <div>
-                <label className="text-sm font-medium text-gray-500">HPP (Pembelian Terbaru)</label>
-                {material.hpp !== null ? (
-                  <p className="text-lg font-semibold text-green-600">
-                    {formatPrice(material.hpp)}
-                  </p>
-                ) : (
-                  <Badge variant="secondary">Belum ada pembelian</Badge>
-                )}
+                <label className="text-sm font-medium text-gray-500">HPP (Terbaru / Fallback)</label>
+                <p className="text-lg font-semibold text-green-600">
+                  {formatPrice((material.hpp ?? material.purchase_price))}
+                </p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">Harga Satuan HPP</label>
-                {material.hpp_unit_price !== undefined && material.hpp_unit_price !== null ? (
-                  <p className="text-lg font-semibold text-blue-600">
-                    {formatPrice(material.hpp_unit_price)}
-                  </p>
-                ) : (
-                  <span className="text-sm text-gray-400">-</span>
-                )}
+                <p className="text-lg font-semibold text-blue-600">
+                  {(() => {
+                    const base = (material.hpp ?? material.purchase_price)
+                    const unitPrice = material.hpp_unit_price ?? (
+                      material.nilai_konversi && material.nilai_konversi > 0
+                        ? (base / material.nilai_konversi)
+                        : base
+                    )
+                    return formatPrice(unitPrice)
+                  })()}
+                </p>
               </div>
             </div>
           </CardContent>

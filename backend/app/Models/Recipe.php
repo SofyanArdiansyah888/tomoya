@@ -51,12 +51,15 @@ class Recipe extends Model
         foreach ($this->recipeMaterials as $recipeMaterial) {
             $material = $recipeMaterial->material;
             $materialHppRaw = $material ? $material->getLatestHpp() : null;
+            if ($material && $materialHppRaw === null) {
+                $materialHppRaw = (float) $material->purchase_price;
+            }
             $conversion = $material && $material->nilai_konversi ? (float) $material->nilai_konversi : 0.0;
-            $materialHpp = ($materialHppRaw !== null && $conversion > 0)
-                ? ($materialHppRaw / $conversion)
-                : null;
+            $materialHpp = ($conversion > 0)
+                ? ($materialHppRaw !== null ? ($materialHppRaw / $conversion) : null)
+                : ($materialHppRaw !== null ? $materialHppRaw : null);
             
-            // Use material HPP if available, otherwise use stored cost
+            // Use material HPP (with fallback to purchase_price); allow manual override via pivot cost if needed
             $costPerUnit = $materialHpp ?? ($recipeMaterial->cost ?? 0);
             $quantity = (float) $recipeMaterial->quantity;
             $subtotal = $costPerUnit * $quantity;
@@ -67,7 +70,7 @@ class Recipe extends Model
                 'material_id' => $recipeMaterial->material_id,
                 'material_name' => $material ? $material->name : 'Unknown',
                 'quantity' => $quantity,
-                'unit' => $recipeMaterial->unit,
+                'unit' => $material ? ($material->unit ?? $recipeMaterial->unit) : $recipeMaterial->unit,
                 'hpp_per_unit' => $materialHpp,
                 'cost_per_unit' => $costPerUnit,
                 'subtotal' => $subtotal,
