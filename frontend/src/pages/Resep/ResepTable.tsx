@@ -65,6 +65,7 @@ export const ResepTable = ({
                 <TableHead>Jumlah Hasil</TableHead>
                 <TableHead>Harga per Unit</TableHead>
                 <TableHead>Material</TableHead>
+                <TableHead>Jenis</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead className="text-right">Aksi</TableHead>
               </TableRow>
@@ -92,6 +93,11 @@ export const ResepTable = ({
                     ) : (
                       <span className="text-gray-400">-</span>
                     )}
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant="outline">
+                      {recipe.is_kopi ? 'Kopi' : 'Non-Kopi'}
+                    </Badge>
                   </TableCell>
                   <TableCell>
                     <Badge variant={recipe.is_active ? 'default' : 'secondary'}>

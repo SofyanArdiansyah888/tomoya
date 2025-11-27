@@ -73,6 +73,8 @@ export const Kasir = () => {
     produk_id: number
     quantity: number
     produk: any
+    coffee_strength?: 'strong' | 'medium' | 'soft' | 'other'
+    coffee_grams?: number
   }>>([])
 
 
@@ -181,6 +183,12 @@ export const Kasir = () => {
     })
 
     toast.success('Produk ditambahkan ke keranjang!')
+  }
+
+  const handleCoffeeOptionChange = (produkId: number, strength: 'strong' | 'medium' | 'soft' | 'other', grams: number) => {
+    setLocalCart(prevCart => prevCart.map(item =>
+      item.produk_id === produkId ? { ...item, coffee_strength: strength, coffee_grams: grams } : item
+    ))
   }
 
   const handleQuantityChange = (produkId: number, newQuantity: number) => {
@@ -579,8 +587,8 @@ export const Kasir = () => {
 
           {/* Cart Sidebar */}
           {showCart && (
-            <CartSidebar
-              cart={localCart}
+          <CartSidebar
+            cart={localCart}
               total={total}
               subtotal={subtotal}
               amountPaid={amountPaid}
@@ -597,9 +605,10 @@ export const Kasir = () => {
               onClientNameChange={setClientName}
               onQrisImageChange={setQrisImage}
               onAmountPaidChange={setAmountPaid}
-              onQuantityChange={handleQuantityChange}
-              onRemoveItem={handleRemoveItem}
-              onCheckout={handleCheckout}
+            onQuantityChange={handleQuantityChange}
+            onRemoveItem={handleRemoveItem}
+            onCoffeeOptionChange={handleCoffeeOptionChange}
+            onCheckout={handleCheckout}
               onPrintReceipt={() => printReceipt(
                 localCart,
                 total,

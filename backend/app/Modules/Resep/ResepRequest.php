@@ -27,6 +27,7 @@ class ResepRequest extends FormRequest
             'cost_per_unit' => 'nullable|numeric|min:0',
             'instructions' => 'nullable|string',
             'is_active' => 'boolean',
+            'is_kopi' => 'boolean',
             'materials' => 'nullable|array',
             'materials.*.material_id' => 'required|exists:material,id',
             'materials.*.quantity' => 'required|numeric|min:0',
@@ -39,6 +40,7 @@ class ResepRequest extends FormRequest
             $rules['name'] = 'sometimes|required|string|max:255';
             $rules['yield_quantity'] = 'sometimes|required|numeric|min:0';
             $rules['yield_unit'] = 'sometimes|required|string|max:50';
+            $rules['is_kopi'] = 'sometimes|boolean';
         }
 
         return $rules;

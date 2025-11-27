@@ -30,6 +30,10 @@ class ResepController extends Controller
             });
         }
 
+        if ($request->has('is_kopi') && $request->is_kopi !== '') {
+            $query->where('is_kopi', $request->boolean('is_kopi'));
+        }
+
         $recipes = $query->get();
         
         return response()->json([

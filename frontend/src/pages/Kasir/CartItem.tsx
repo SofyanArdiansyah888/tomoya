@@ -1,24 +1,61 @@
-import { Minus, Plus, Trash2 } from 'lucide-react'
+import { Minus, Plus, Trash2, Coffee } from 'lucide-react'
 import { Button } from '../../components/ui/button'
 import { formatPrice } from '../../lib/formatPrice'
+import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
+import { Input } from '../../components/ui/input'
+import { Label } from '../../components/ui/label'
+import { useState, useEffect } from 'react'
 
 interface CartItemProps {
   item: {
     produk_id: number
     quantity: number
     produk: any
+    coffee_strength?: 'strong' | 'medium' | 'soft' | 'other'
+    coffee_grams?: number
   }
   availableStock: number
   onQuantityChange: (produkId: number, newQuantity: number) => void
   onRemove?: (produkId: number) => void
+  onCoffeeOptionChange: (produkId: number, strength: 'strong' | 'medium' | 'soft' | 'other', grams: number) => void
 }
 
 export const CartItem = ({
   item,
   availableStock,
   onQuantityChange,
-  onRemove
+  onRemove,
+  onCoffeeOptionChange
 }: CartItemProps) => {
+  const [strength, setStrength] = useState<'strong' | 'medium' | 'soft' | 'other'>(item.coffee_strength || 'medium')
+  const [grams, setGrams] = useState<number>(typeof item.coffee_grams === 'number' ? item.coffee_grams : 8)
+
+  useEffect(() => {
+    setStrength(item.coffee_strength || 'medium')
+    setGrams(typeof item.coffee_grams === 'number' ? item.coffee_grams : 8)
+  }, [item.coffee_strength, item.coffee_grams])
+
+  const strengthDefaults: Record<'strong'|'medium'|'soft'|'other', number> = {
+    strong: 10,
+    medium: 8,
+    soft: 6,
+    other: 0,
+  }
+
+  const handleSelectStrength = (s: 'strong' | 'medium' | 'soft' | 'other') => {
+    setStrength(s)
+    const defaultGrams = strengthDefaults[s]
+    setGrams(defaultGrams)
+    onCoffeeOptionChange(item.produk_id, s, defaultGrams)
+  }
+
+  const handleChangeGrams = (value: string) => {
+    const num = parseFloat(value)
+    if (!isNaN(num)) {
+      setGrams(num)
+      onCoffeeOptionChange(item.produk_id, strength, num)
+    }
+  }
   return (
     <>
      <h4
@@ -44,6 +81,46 @@ export const CartItem = ({
             </span>
           )}
           <div className="flex-1"></div>
+          {item.produk?.resep?.is_kopi && (
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="outline" size="sm" className="flex items-center gap-1">
+                  <Coffee className="h-3 w-3" />
+                  Kopi
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-64">
+                <div className="space-y-3">
+                  <Label className="text-xs">Kekuatan</Label>
+                  <div className="grid grid-cols-4 gap-2">
+                    {(['strong','medium','soft','other'] as const).map((s) => (
+                      <Button
+                        key={s}
+                        type="button"
+                        variant={strength === s ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => handleSelectStrength(s)}
+                        className="text-xs"
+                      >
+                        {s}
+                      </Button>
+                    ))}
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor={`grams-${item.produk_id}`} className="text-xs">Gram Kopi</Label>
+                    <Input
+                      id={`grams-${item.produk_id}`}
+                      type="number"
+                      min={0}
+                      step={1}
+                      value={grams}
+                      onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChangeGrams(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </PopoverContent>
+            </Popover>
+          )}
           {onRemove && (
             <Button
               variant="ghost"

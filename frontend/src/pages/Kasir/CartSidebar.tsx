@@ -30,6 +30,7 @@ interface CartSidebarProps {
   onAmountPaidChange: (amount: number | '') => void
   onQuantityChange: (produkId: number, newQuantity: number) => void
   onRemoveItem?: (produkId: number) => void
+  onCoffeeOptionChange: (produkId: number, strength: 'strong' | 'medium' | 'soft' | 'other', grams: number) => void
   onCheckout: () => void
   onPrintReceipt: () => void
   onPrintLabel: () => void
@@ -56,6 +57,7 @@ export const CartSidebar = ({
   onAmountPaidChange,
   onQuantityChange,
   onRemoveItem,
+  onCoffeeOptionChange,
   onCheckout,
   onPrintReceipt,
   onPrintLabel,
@@ -86,6 +88,7 @@ export const CartSidebar = ({
                   availableStock={getProductStock(item.produk_id)}
                   onQuantityChange={onQuantityChange}
                   onRemove={onRemoveItem}
+                  onCoffeeOptionChange={onCoffeeOptionChange}
                 />
               ))}
             </div>
