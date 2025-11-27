@@ -17,12 +17,14 @@ class Recipe extends Model
         'cost_per_unit',
         'instructions',
         'is_active',
+        'is_kopi',
     ];
 
     protected $casts = [
         'yield_quantity' => 'decimal:2',
         'cost_per_unit' => 'decimal:2',
         'is_active' => 'boolean',
+        'is_kopi' => 'boolean',
     ];
 
     public function recipeMaterials(): HasMany

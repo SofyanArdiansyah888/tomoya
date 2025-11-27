@@ -34,6 +34,7 @@ export const RecipeForm = ({ recipe, onSubmit, onCancel, isSaving = false }: Rec
     cost_per_unit: '',
     instructions: '',
     is_active: true,
+    is_kopi: false,
   })
 
   const [materials, setMaterials] = useState<RecipeMaterial[]>([])
@@ -49,6 +50,7 @@ export const RecipeForm = ({ recipe, onSubmit, onCancel, isSaving = false }: Rec
         cost_per_unit: recipe.cost_per_unit?.toString() || '',
         instructions: recipe.instructions || '',
         is_active: recipe.is_active,
+        is_kopi: recipe.is_kopi,
       })
 
       if (recipe.materials) {
@@ -68,6 +70,7 @@ export const RecipeForm = ({ recipe, onSubmit, onCancel, isSaving = false }: Rec
         cost_per_unit: '',
         instructions: '',
         is_active: true,
+        is_kopi: false,
       })
       setMaterials([])
     }
@@ -292,6 +295,15 @@ export const RecipeForm = ({ recipe, onSubmit, onCancel, isSaving = false }: Rec
           onCheckedChange={(checked: boolean) => handleChange('is_active', checked)}
         />
         <Label htmlFor="is_active">Resep Aktif</Label>
+      </div>
+
+      <div className="flex items-center space-x-2">
+        <Switch
+          id="is_kopi"
+          checked={formData.is_kopi}
+          onCheckedChange={(checked: boolean) => handleChange('is_kopi', checked)}
+        />
+        <Label htmlFor="is_kopi">Resep Kopi</Label>
       </div>
 
       <div className="flex justify-end space-x-2 pt-4">

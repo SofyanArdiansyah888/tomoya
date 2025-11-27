@@ -11,6 +11,7 @@ export interface Recipe {
   cost_per_unit?: number;
   instructions?: string;
   is_active: boolean;
+  is_kopi: boolean;
   created_at: string;
   updated_at: string;
   materials?: Material[];

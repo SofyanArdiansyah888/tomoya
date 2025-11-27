@@ -1,12 +1,11 @@
 import { useQuery } from '@tanstack/react-query'
 import {
+  ChevronDown,
+  ChevronUp,
   Clock,
   Eye,
   Plus,
-  X,
-  MapPin,
-  ChevronUp,
-  ChevronDown
+  X
 } from 'lucide-react'
 import { useState } from 'react'
 import { Badge } from '../../components/ui/badge'
@@ -18,8 +17,8 @@ import { formatPrice } from '../../lib/formatPrice'
 import { shiftService } from '../../services/shift'
 import { BukaKasirRequest, ShiftFilters, ShiftKasir, TutupKasirRequest } from '../../types/shift'
 import { BukaKasirModal } from './BukaKasirModal'
-import { TutupKasirModal } from './TutupKasirModal'
 import { InputPemasukanModal } from './InputPemasukanModal'
+import { TutupKasirModal } from './TutupKasirModal'
 // Using native JavaScript Date formatting
 
 export const ShiftKasirPage = () => {
