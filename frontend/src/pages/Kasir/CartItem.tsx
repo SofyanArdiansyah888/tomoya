@@ -56,6 +56,10 @@ export const CartItem = ({
       onCoffeeOptionChange(item.produk_id, strength, num)
     }
   }
+  const isCoffee = !!(item?.produk?.kategori?.nama && (
+    item.produk.kategori.nama.toLowerCase().includes('coffee') ||
+    item.produk.kategori.nama.toLowerCase().includes('kopi')
+  ))
   return (
     <>
      <h4
@@ -81,7 +85,7 @@ export const CartItem = ({
             </span>
           )}
           <div className="flex-1"></div>
-          {item.produk?.resep?.is_kopi && (
+          {isCoffee && (
             <Popover>
               <PopoverTrigger asChild>
                 <Button variant="outline" size="sm" className="flex items-center gap-1">
@@ -100,7 +104,7 @@ export const CartItem = ({
                         variant={strength === s ? 'default' : 'outline'}
                         size="sm"
                         onClick={() => handleSelectStrength(s)}
-                        className="text-xs"
+                        className="text-xs capitalize px-1"
                       >
                         {s}
                       </Button>

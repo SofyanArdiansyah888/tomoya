@@ -20,6 +20,7 @@ import { formatPrice } from '../../lib/formatPrice'
 import { produkLokasiService } from '../../services/inventory'
 import { productService } from '../../services/products'
 import { shiftService } from '../../services/shift'
+import { recipeService } from '../../services/recipe'
 import { CartSidebar } from './CartSidebar'
 import { ProductCard } from './ProductCard'
 import { printReceipt } from '../../utils/printReceipt'
@@ -142,9 +143,9 @@ export const Kasir = () => {
     }
   }, [paymentMethod, paymentStatus])
 
-  const handleAddToCart = (productId: number, quantity: number = 1) => {
+  const handleAddToCart = async (productId: number, quantity: number = 1) => {
     // Get product from products list
-    const product = products?.data?.find((p: any) => p.id === productId)
+    let product = products?.data?.find((p: any) => p.id === productId)
     if (!product) return
 
     // Check if product is out of stock (only for stockable products)
@@ -165,7 +166,13 @@ export const Kasir = () => {
       return
     }
 
-    // Add to local cart
+    if (!product.resep && product.resep_id) {
+      try {
+        const recipe = await recipeService.getRecipe(product.resep_id)
+        product = { ...product, resep: recipe }
+      } catch (e) {}
+    }
+
     setLocalCart(prevCart => {
       if (existingItem) {
         return prevCart.map(item =>
