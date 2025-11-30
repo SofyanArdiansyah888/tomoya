@@ -103,6 +103,9 @@ class PesananController extends Controller
             'items.*.produk_id' => 'required|exists:produk,id',
             'items.*.quantity' => 'required|integer|min:1',
             'items.*.harga_satuan' => 'required|numeric|min:0',
+            'items.*.coffee_strength' => 'nullable|in:strong,medium,soft,other',
+            'items.*.coffee_grams' => 'nullable|numeric|min:0',
+            'items.*.target_material_id' => 'nullable|exists:material,id',
         ]);
 
         // Calculate total from items (already parsed above)
@@ -205,6 +208,16 @@ class PesananController extends Controller
                 }
                 
                 if ($produk->stockable && $produk->resep && $produk->resep->recipeMaterials) {
+                    $coffeeGrams = isset($item['coffee_grams']) ? (float) $item['coffee_grams'] : null;
+                    $targetMaterialId = isset($item['target_material_id']) ? (int) $item['target_material_id'] : null;
+                    $flaggedCoffeeMaterialId = null;
+                    foreach ($produk->resep->recipeMaterials as $rm) {
+                        if ($rm && $rm->material && ($rm->material->is_bahan_kopi ?? false)) {
+                            $flaggedCoffeeMaterialId = $rm->material_id;
+                            break;
+                        }
+                    }
+
                     foreach ($produk->resep->recipeMaterials as $recipeMaterial) {
                         if (!$recipeMaterial) {
                             continue;
@@ -215,7 +228,10 @@ class PesananController extends Controller
                             continue;
                         }
                         
-                        $requiredQuantityPerProduct = (float)$recipeMaterial->quantity;
+                        $requiredQuantityPerProduct = (float) $recipeMaterial->quantity;
+                        if ($coffeeGrams !== null && (($targetMaterialId && $materialId === $targetMaterialId) || ($flaggedCoffeeMaterialId && $materialId === $flaggedCoffeeMaterialId))) {
+                            $requiredQuantityPerProduct = (float) $coffeeGrams;
+                        }
                         $totalRequiredQuantity = $requiredQuantityPerProduct * $item['quantity'];
                         
                         // Validasi stok tersedia
@@ -242,7 +258,7 @@ class PesananController extends Controller
                             'quantity_after' => $quantityAfter,
                             'reference_type' => Pesanan::class,
                             'reference_id' => $pesanan->id,
-                            'keterangan' => "Penjualan produk {$produk->nama} (Pesanan #{$pesanan->id})",
+                            'keterangan' => "Penjualan produk {$produk->nama} (Pesanan #{$pesanan->no_pesanan})",
                             'user_id' => $userId,
                             'tanggal' => now(),
                         ]);
@@ -336,6 +352,9 @@ class PesananController extends Controller
             $validationRules['items.*.produk_id'] = 'required|exists:produk,id';
             $validationRules['items.*.quantity'] = 'required|integer|min:1';
             $validationRules['items.*.harga_satuan'] = 'required|numeric|min:0';
+            $validationRules['items.*.coffee_strength'] = 'nullable|in:strong,medium,soft,other';
+            $validationRules['items.*.coffee_grams'] = 'nullable|numeric|min:0';
+            $validationRules['items.*.target_material_id'] = 'nullable|exists:material,id';
         }
 
         $request->validate($validationRules);
@@ -482,13 +501,26 @@ class PesananController extends Controller
                     }
                     
                     if ($produk->stockable && $produk->resep && $produk->resep->recipeMaterials) {
+                        $coffeeGrams = isset($item['coffee_grams']) ? (float) $item['coffee_grams'] : null;
+                        $targetMaterialId = isset($item['target_material_id']) ? (int) $item['target_material_id'] : null;
+                        $flaggedCoffeeMaterialId = null;
+                        foreach ($produk->resep->recipeMaterials as $rm) {
+                            if ($rm && $rm->material && ($rm->material->is_bahan_kopi ?? false)) {
+                                $flaggedCoffeeMaterialId = $rm->material_id;
+                                break;
+                            }
+                        }
+
                         foreach ($produk->resep->recipeMaterials as $recipeMaterial) {
                             if (!$recipeMaterial || !$recipeMaterial->material_id) {
                                 continue;
                             }
                             
                             $materialId = $recipeMaterial->material_id;
-                            $requiredQuantityPerProduct = (float)$recipeMaterial->quantity;
+                            $requiredQuantityPerProduct = (float) $recipeMaterial->quantity;
+                            if ($coffeeGrams !== null && (($targetMaterialId && $materialId === $targetMaterialId) || ($flaggedCoffeeMaterialId && $materialId === $flaggedCoffeeMaterialId))) {
+                                $requiredQuantityPerProduct = (float) $coffeeGrams;
+                            }
                             $totalRequiredQuantity = $requiredQuantityPerProduct * $item['quantity'];
                             
                             // Validate stock available

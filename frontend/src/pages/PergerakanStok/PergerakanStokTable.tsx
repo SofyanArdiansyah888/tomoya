@@ -197,8 +197,8 @@ export const PergerakanStokTable = ({
                         )}
                       </div>
                     </td>
-                    <td className="px-6 py-4">
-                      <div className="text-sm text-gray-600 max-w-xs truncate">
+                    <td className="px-6 py-4 align-top">
+                      <div className="text-sm text-gray-600 max-w-md whitespace-normal break-words leading-snug">
                         {movement.keterangan || '-'}
                       </div>
                     </td>

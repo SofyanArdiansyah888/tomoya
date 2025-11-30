@@ -21,6 +21,7 @@ class Material extends Model
         'min_stok_gudang' => 'integer',
         'nilai_konversi' => 'decimal:2',
         'is_active' => 'boolean',
+        'is_bahan_kopi' => 'boolean',
     ];
 
     public function category(): BelongsTo

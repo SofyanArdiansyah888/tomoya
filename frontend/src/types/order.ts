@@ -56,6 +56,9 @@ export interface CreateOrderRequest {
     produk_id: number;
     quantity: number;
     harga_satuan: number;
+    coffee_strength?: 'strong' | 'medium' | 'soft' | 'other';
+    coffee_grams?: number;
+    target_material_id?: number;
   }[];
   metode_pembayaran: 'cash' | 'card' | 'qris' | 'other';
   status?: 'bayar' | 'belum_bayar';
@@ -73,6 +76,9 @@ export interface UpdateOrderRequest {
     produk_id: number;
     quantity: number;
     harga_satuan: number;
+    coffee_strength?: 'strong' | 'medium' | 'soft' | 'other';
+    coffee_grams?: number;
+    target_material_id?: number;
   }[];
   metode_pembayaran?: 'cash' | 'card' | 'qris' | 'other';
   subtotal?: number;
