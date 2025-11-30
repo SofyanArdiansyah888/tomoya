@@ -59,7 +59,7 @@ export const CartItem = ({
     const num = parseFloat(value)
     if (!isNaN(num)) {
       setGrams(num)
-      onCoffeeOptionChange(item.line_id, strength, num)
+      onCoffeeOptionChange(item.line_id, strength || 'other', num)
     }
   }
   const isCoffee = !!(item?.produk?.kategori?.nama && (
