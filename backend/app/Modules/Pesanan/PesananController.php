@@ -465,7 +465,7 @@ class PesananController extends Controller
                                 'quantity_after' => $quantityAfter,
                                 'reference_type' => Pesanan::class,
                                 'reference_id' => $pesanan->id,
-                                'keterangan' => "Rollback penjualan produk {$produk->nama} (Pesanan #{$pesanan->id} - Update)",
+                                'keterangan' => "Rollback penjualan produk {$produk->nama} (Pesanan #{$pesanan->no_pesanan} - Update)",
                                 'user_id' => $userId,
                                 'tanggal' => now(),
                             ]);

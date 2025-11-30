@@ -21,9 +21,12 @@ interface EditOrderModalProps {
 }
 
 interface CartItemType {
+  line_id: string
   produk_id: number
   quantity: number
   produk: any
+  coffee_strength?: 'strong' | 'medium' | 'soft' | 'other'
+  coffee_grams?: number
 }
 
 export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) => {
@@ -64,14 +67,19 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
   useEffect(() => {
     if (order && isOpen) {
       // Convert order items to cart format
-      const cartItems: CartItemType[] = (order.items || []).map((item: any) => ({
+      const cartItems: CartItemType[] = (order.items || []).map((item: any, idx: number) => ({
+        line_id: `line-${item.produk_id}-${idx}`,
         produk_id: item.produk_id,
         quantity: item.quantity,
         produk: item.produk || { 
           id: item.produk_id,
           nama: 'Produk tidak ditemukan',
-          harga: item.harga_satuan || item.harga || 0
-        }
+          harga: item.harga_satuan || item.harga || 0,
+          kategori: item.produk?.kategori || undefined,
+          resep: item.produk?.resep || undefined,
+        },
+        coffee_strength: item.coffee_strength,
+        coffee_grams: typeof item.coffee_grams === 'number' ? item.coffee_grams : undefined,
       }))
       
       setCart(cartItems)
@@ -92,13 +100,12 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
   }
 
   // Handle quantity change
-  const handleQuantityChange = (produkId: number, newQuantity: number) => {
+  const handleQuantityChange = (lineId: string, newQuantity: number) => {
     if (newQuantity < 1) {
-      // Remove item if quantity is 0
-      setCart(cart.filter(item => item.produk_id !== produkId))
+      setCart(cart.filter(item => item.line_id !== lineId))
     } else {
       setCart(cart.map(item => 
-        item.produk_id === produkId 
+        item.line_id === lineId 
           ? { ...item, quantity: newQuantity }
           : item
       ))
@@ -109,9 +116,10 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
   const handleAddProduct = (product: any) => {
     const existingItem = cart.find(item => item.produk_id === product.id)
     if (existingItem) {
-      handleQuantityChange(product.id, existingItem.quantity + 1)
+      handleQuantityChange(existingItem.line_id, existingItem.quantity + 1)
     } else {
       setCart([...cart, {
+        line_id: `line-${product.id}-${Date.now()}`,
         produk_id: product.id,
         quantity: 1,
         produk: product
@@ -122,8 +130,14 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
   }
 
   // Handle remove item
-  const handleRemoveItem = (produkId: number) => {
-    setCart(cart.filter(item => item.produk_id !== produkId))
+  const handleRemoveItem = (lineId: string) => {
+    setCart(cart.filter(item => item.line_id !== lineId))
+  }
+
+  const handleCoffeeOptionChange = (lineId: string, strength: 'strong' | 'medium' | 'soft' | 'other' | undefined, grams: number) => {
+    setCart(cart.map(item => (
+      item.line_id === lineId ? { ...item, coffee_strength: strength, coffee_grams: grams } : item
+    )))
   }
 
   // Calculate total
@@ -143,6 +157,25 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
   }, [paymentMethod, paymentStatus])
 
   // Handle submit
+  const resolveCoffeeMaterialId = (product: any): number | undefined => {
+    const materials = product?.resep?.recipeMaterials || product?.resep?.recipe_materials || []
+    // Priority 1: flagged coffee material
+    for (const rm of materials) {
+      if (rm?.material?.is_bahan_kopi) return rm.material_id
+    }
+    // Priority 2: name includes coffee keywords
+    for (const rm of materials) {
+      const name = rm?.material?.nama?.toLowerCase?.() || ''
+      if (name.includes('kopi') || name.includes('coffee') || name.includes('espresso')) return rm.material_id
+    }
+    // Priority 3: unit grams
+    for (const rm of materials) {
+      const unit = rm?.material?.unit?.toLowerCase?.() || ''
+      if (unit.includes('gram')) return rm.material_id
+    }
+    return undefined
+  }
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     
@@ -164,31 +197,27 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
       }
     }
 
-    // Create FormData for file upload
+    // Build JSON payload (follow create flow)
+    const itemsPayload = cart.map(item => ({
+      produk_id: Number(item.produk_id),
+      quantity: Number(item.quantity),
+      harga_satuan: Number(item.produk?.harga || 0),
+      coffee_strength: item.coffee_strength,
+      coffee_grams: typeof item.coffee_grams === 'number' ? item.coffee_grams : undefined,
+      target_material_id: resolveCoffeeMaterialId(item.produk),
+    }))
+
     const orderData: any = {
       status: paymentStatus,
       metode_pembayaran: paymentMethod,
-      subtotal: subtotal,
-      uang_dibayar: paymentMethod === 'cash' && paymentStatus === 'bayar' && typeof amountPaid === 'number' ? amountPaid : undefined,
-      kembalian: paymentMethod === 'cash' && paymentStatus === 'bayar' ? kembalian : undefined,
-      items: cart.map(item => ({
-        produk_id: item.produk_id,
-        quantity: item.quantity,
-        harga_satuan: item.produk?.harga || 0,
-      })),
+      subtotal: Number(subtotal),
+      items: itemsPayload,
     }
-
-    if (notes) {
-      orderData.catatan = notes
-    }
-
-    if (clientName) {
-      orderData.nama_client = clientName
-    }
-
-    // gambar_qris: for file, should be handled appropriately by API (if needed)
-    if (qrisImage && paymentMethod === 'qris') {
-      orderData.gambar_qris = qrisImage
+    if (notes) orderData.catatan = notes
+    if (clientName) orderData.nama_client = clientName
+    if (paymentMethod === 'cash' && paymentStatus === 'bayar' && typeof amountPaid === 'number') {
+      orderData.uang_dibayar = Number(amountPaid)
+      orderData.kembalian = Number(kembalian)
     }
 
     updateOrder.mutate(
@@ -251,28 +280,34 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
               <div className="max-h-40 overflow-y-auto space-y-2">
                 {products?.data?.filter((p: any) => 
                   !cart.find(item => item.produk_id === p.id)
-                ).map((product: any) => (
-                  <div
-                    key={product.id}
-                    className="flex items-center justify-between p-2 bg-white rounded border hover:bg-gray-50 cursor-pointer"
-                    onClick={() => handleAddProduct(product)}
-                  >
-                    <div>
-                      <p className="font-medium text-sm">{product.nama}</p>
-                      <p className="text-xs text-gray-500">
-                        {formatPrice(product.harga || 0)}
-                        {product.stockable && (
-                          <span className="ml-2">
-                            • Stok: {getProductStock(product.id)}
-                          </span>
-                        )}
-                      </p>
+                ).map((product: any) => {
+                  const stock = getProductStock(product.id)
+                  const isDisabled = product.stockable && stock <= 0
+                  return (
+                    <div
+                      key={product.id}
+                      className={`flex items-center justify-between p-2 rounded border ${isDisabled ? 'bg-gray-100 opacity-60 cursor-not-allowed' : 'bg-white hover:bg-gray-50 cursor-pointer'}`}
+                      onClick={isDisabled ? undefined : () => handleAddProduct(product)}
+                      aria-disabled={isDisabled}
+                      title={isDisabled ? 'Stok kosong' : ''}
+                    >
+                      <div>
+                        <p className="font-medium text-sm">{product.nama}</p>
+                        <p className="text-xs text-gray-500">
+                          {formatPrice(product.harga || 0)}
+                          {product.stockable && (
+                            <span className="ml-2">
+                              • Stok: {stock}
+                            </span>
+                          )}
+                        </p>
+                      </div>
+                      <Button variant="ghost" size="sm" disabled={isDisabled}>
+                        <Plus className="h-4 w-4" />
+                      </Button>
                     </div>
-                    <Button variant="ghost" size="sm">
-                      <Plus className="h-4 w-4" />
-                    </Button>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
             </div>
           )}
@@ -282,18 +317,12 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
               cart.map((item) => (
                 <div key={item.produk_id} className="relative">
                   <CartItem
-                    item={item}
+                    item={item as any}
                     availableStock={getProductStock(item.produk_id)}
                     onQuantityChange={handleQuantityChange}
+                    onRemove={(lineId) => handleRemoveItem(lineId)}
+                    onCoffeeOptionChange={(lineId, strength, grams) => handleCoffeeOptionChange(lineId, strength, grams)}
                   />
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    className="absolute top-2 right-2 text-red-600 hover:text-red-700"
-                    onClick={() => handleRemoveItem(item.produk_id)}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
                 </div>
               ))
             ) : (
