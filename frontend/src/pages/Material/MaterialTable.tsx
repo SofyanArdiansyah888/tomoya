@@ -98,6 +98,9 @@ export const MaterialTable = ({
                     Nilai Konversi
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    Jenis
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                     Status
                   </th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -139,6 +142,13 @@ export const MaterialTable = ({
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                       {material.nilai_konversi ?? '-'}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {material.is_bahan_kopi ? (
+                        <Badge variant="secondary">Bahan Kopi</Badge>
+                      ) : (
+                        <Badge variant="outline">-</Badge>
+                      )}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <Badge variant={material.is_active ? "default" : "secondary"}>

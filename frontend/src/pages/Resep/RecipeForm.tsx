@@ -84,6 +84,7 @@ export const RecipeForm = ({ recipe, onSubmit, onCancel, isSaving = false }: Rec
       yield_quantity: parseFloat(formData.yield_quantity),
       cost_per_unit: formData.cost_per_unit ? parseFloat(formData.cost_per_unit) : null,
       materials: materials,
+      is_kopi: false
     }
 
     onSubmit(submitData)
@@ -297,15 +298,7 @@ export const RecipeForm = ({ recipe, onSubmit, onCancel, isSaving = false }: Rec
         <Label htmlFor="is_active">Resep Aktif</Label>
       </div>
 
-      <div className="flex items-center space-x-2">
-        <Switch
-          id="is_kopi"
-          checked={formData.is_kopi}
-          onCheckedChange={(checked: boolean) => handleChange('is_kopi', checked)}
-        />
-        <Label htmlFor="is_kopi">Resep Kopi</Label>
-      </div>
-
+  
       <div className="flex justify-end space-x-2 pt-4">
         <Button type="button" variant="outline" onClick={onCancel} disabled={isSaving}>
           Batal

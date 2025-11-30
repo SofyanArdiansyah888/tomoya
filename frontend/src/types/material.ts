@@ -13,6 +13,7 @@ export interface Material {
   nilai_konversi: number;
   barcode?: string;
   is_active: boolean;
+  is_bahan_kopi?: boolean;
   created_at: string;
   updated_at: string;
   category?: Category;

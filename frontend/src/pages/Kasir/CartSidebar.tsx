@@ -5,9 +5,12 @@ import { formatPrice } from '../../lib/formatPrice'
 import { CartItem } from './CartItem'
 
 interface CartItemType {
+  line_id: string
   produk_id: number
   quantity: number
   produk: any
+  coffee_strength?: 'strong' | 'medium' | 'soft' | 'other'
+  coffee_grams?: number
 }
 
 interface CartSidebarProps {
@@ -28,9 +31,9 @@ interface CartSidebarProps {
   onClientNameChange: (name: string) => void
   onQrisImageChange: (file: File | null) => void
   onAmountPaidChange: (amount: number | '') => void
-  onQuantityChange: (produkId: number, newQuantity: number) => void
-  onRemoveItem?: (produkId: number) => void
-  onCoffeeOptionChange: (produkId: number, strength: 'strong' | 'medium' | 'soft' | 'other', grams: number) => void
+  onQuantityChange: (lineId: string, newQuantity: number) => void
+  onRemoveItem?: (lineId: string) => void
+  onCoffeeOptionChange: (lineId: string, strength: 'strong' | 'medium' | 'soft' | 'other', grams: number) => void
   onCheckout: () => void
   onPrintReceipt: () => void
   onPrintLabel: () => void
@@ -83,7 +86,7 @@ export const CartSidebar = ({
             <div className="space-y-3 max-h-96 overflow-y-auto mb-4">
               {cart.map((item) => (
                 <CartItem
-                  key={item.produk_id}
+                  key={item.line_id}
                   item={item}
                   availableStock={getProductStock(item.produk_id)}
                   onQuantityChange={onQuantityChange}

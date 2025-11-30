@@ -1,4 +1,4 @@
-import { Calendar, Eye, FileText, Package, Printer, Tag } from 'lucide-react'
+import { Calendar, Eye, FileText, Package, Printer, Tag, Edit } from 'lucide-react'
 import React, { useState } from 'react'
 import { Badge } from '../../components/ui/badge'
 import { Button } from '../../components/ui/button'
@@ -46,7 +46,11 @@ export const ManajemenPesanan = () => {
     setSelectedOrderId(order.id)
   }
 
+  const handleEdit = (order: Pesanan) => {
+    setEditOrderId(order.id)
+  }
 
+  
   const handlePrintReceipt = async (order: Pesanan, e?: React.MouseEvent) => {
     e?.preventDefault()
     e?.stopPropagation()
@@ -433,7 +437,7 @@ export const ManajemenPesanan = () => {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1.5 flex-wrap">
-                          {/* {order.status === 'belum_bayar' && (
+                          {order.status === 'belum_bayar' && (
                             <Button
                               variant="outline"
                               size="sm"
@@ -443,7 +447,7 @@ export const ManajemenPesanan = () => {
                               <Edit className="h-3 w-3 mr-1" />
                               Edit
                             </Button>
-                          )} */}
+                          )}
                           <Button
                             variant="outline"
                             size="sm"

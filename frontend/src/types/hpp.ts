@@ -14,6 +14,7 @@ export interface HppMaterial {
   is_active: boolean;
   hpp: number | null;
   hpp_unit_price?: number | null;
+  hpp_source?: 'mix_preparation' | 'purchase' | 'purchase_fallback';
   latest_purchase: LatestPurchase | null;
   category?: Category;
   supplier?: Supplier;

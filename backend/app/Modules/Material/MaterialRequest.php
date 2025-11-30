@@ -33,6 +33,7 @@ class MaterialRequest extends FormRequest
             'nilai_konversi' => 'required|numeric|min:0',
             'barcode' => 'nullable|string|max:100',
             'is_active' => 'boolean',
+            'is_bahan_kopi' => 'boolean',
         ];
 
         if ($this->isMethod('PUT') || $this->isMethod('PATCH')) {
@@ -49,6 +50,7 @@ class MaterialRequest extends FormRequest
             $rules['nilai_konversi'] = 'sometimes|required|numeric|min:0';
             $rules['barcode'] = 'nullable|string|max:100';
             $rules['is_active'] = 'sometimes|boolean';
+            $rules['is_bahan_kopi'] = 'sometimes|boolean';
         }
 
         return $rules;

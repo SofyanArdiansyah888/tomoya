@@ -52,17 +52,24 @@ class Recipe extends Model
 
         foreach ($this->recipeMaterials as $recipeMaterial) {
             $material = $recipeMaterial->material;
-            $materialHppRaw = $material ? $material->getLatestHpp() : null;
-            if ($material && $materialHppRaw === null) {
-                $materialHppRaw = (float) $material->purchase_price;
+            $materialHpp = null;
+            $source = null;
+            if ($material) {
+                // Prioritize Mix Preparation unit HPP
+                $mixUnit = $material->getMixPreparationUnitHpp();
+                if ($mixUnit !== null) {
+                    $materialHpp = $mixUnit;
+                    $source = 'mix_preparation';
+                } else {
+                    // Fallback to purchase-based unit HPP
+                    $materialHpp = $material->getUnitHpp();
+                    $source = 'purchase';
+                }
             }
-            $conversion = $material && $material->nilai_konversi ? (float) $material->nilai_konversi : 0.0;
-            $materialHpp = ($conversion > 0)
-                ? ($materialHppRaw !== null ? ($materialHppRaw / $conversion) : null)
-                : ($materialHppRaw !== null ? $materialHppRaw : null);
+
             $materialHpp = $materialHpp !== null ? round($materialHpp, 2) : null;
-            
-            // Use material HPP (with fallback to purchase_price); allow manual override via pivot cost if needed
+
+            // Use material HPP (with fallback to manual pivot cost if provided)
             $costPerUnit = $materialHpp ?? ($recipeMaterial->cost ?? 0);
             $costPerUnit = round($costPerUnit, 2);
             $quantity = (float) $recipeMaterial->quantity;
@@ -78,6 +85,7 @@ class Recipe extends Model
                 'hpp_per_unit' => $materialHpp,
                 'cost_per_unit' => $costPerUnit,
                 'subtotal' => $subtotal,
+                'source' => $source,
             ];
         }
 

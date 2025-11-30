@@ -20,6 +20,7 @@ import { formatPrice } from '../../lib/formatPrice'
 import { produkLokasiService } from '../../services/inventory'
 import { productService } from '../../services/products'
 import { shiftService } from '../../services/shift'
+import { recipeService } from '../../services/recipe'
 import { CartSidebar } from './CartSidebar'
 import { ProductCard } from './ProductCard'
 import { printReceipt } from '../../utils/printReceipt'
@@ -70,6 +71,7 @@ export const Kasir = () => {
 
   // Local cart state (no API calls needed for cashier)
   const [localCart, setLocalCart] = useState<Array<{
+    line_id: string
     produk_id: number
     quantity: number
     produk: any
@@ -142,9 +144,11 @@ export const Kasir = () => {
     }
   }, [paymentMethod, paymentStatus])
 
-  const handleAddToCart = (productId: number, quantity: number = 1) => {
+  const generateLineId = () => `${Date.now()}-${Math.random().toString(36).slice(2,8)}`
+
+  const handleAddToCart = async (productId: number, quantity: number = 1) => {
     // Get product from products list
-    const product = products?.data?.find((p: any) => p.id === productId)
+    let product = products?.data?.find((p: any) => p.id === productId)
     if (!product) return
 
     // Check if product is out of stock (only for stockable products)
@@ -156,7 +160,7 @@ export const Kasir = () => {
     // Get current stock
     const availableStock = product.stockable ? getProductStock(productId) : Infinity
     const existingItem = localCart.find(item => item.produk_id === productId)
-    const currentQuantity = existingItem ? existingItem.quantity : 0
+    const currentQuantity = existingItem ? itemIsCoffee(existingItem) ? 0 : existingItem.quantity : 0
     const newQuantity = currentQuantity + quantity
 
     // Check if adding would exceed available stock
@@ -165,43 +169,51 @@ export const Kasir = () => {
       return
     }
 
-    // Add to local cart
+    if (!product.resep && product.resep_id) {
+      try {
+        const recipe = await recipeService.getRecipe(product.resep_id)
+        product = { ...product, resep: recipe }
+      } catch (e) {}
+    }
+
+    const isKopi = isProductCoffee(product)
     setLocalCart(prevCart => {
-      if (existingItem) {
+      if (!isKopi && existingItem) {
         return prevCart.map(item =>
           item.produk_id === productId
             ? { ...item, quantity: Math.min(newQuantity, availableStock) }
             : item
         )
-      } else {
-        return [...prevCart, {
-          produk_id: productId,
-          quantity: Math.min(quantity, availableStock),
-          produk: product
-        }]
       }
+      return [...prevCart, {
+        line_id: generateLineId(),
+        produk_id: productId,
+        quantity: Math.min(quantity, availableStock),
+        produk: product
+      }]
     })
 
     toast.success('Produk ditambahkan ke keranjang!')
   }
 
-  const handleCoffeeOptionChange = (produkId: number, strength: 'strong' | 'medium' | 'soft' | 'other', grams: number) => {
+  const handleCoffeeOptionChange = (lineId: string, strength: 'strong' | 'medium' | 'soft' | 'other', grams: number) => {
     setLocalCart(prevCart => prevCart.map(item =>
-      item.produk_id === produkId ? { ...item, coffee_strength: strength, coffee_grams: grams } : item
+      item.line_id === lineId ? { ...item, coffee_strength: strength, coffee_grams: grams } : item
     ))
   }
 
-  const handleQuantityChange = (produkId: number, newQuantity: number) => {
+  const handleQuantityChange = (lineId: string, newQuantity: number) => {
     if (newQuantity <= 0) {
-      setLocalCart(prevCart => prevCart.filter(item => item.produk_id !== produkId))
+      setLocalCart(prevCart => prevCart.filter(item => item.line_id !== lineId))
       toast.success('Produk dihapus dari keranjang!')
       return
     }
 
     // Get product and check stock limit
-    const product = products?.data?.find((p: any) => p.id === produkId)
+    const targetItem = localCart.find(i => i.line_id === lineId)
+    const product = products?.data?.find((p: any) => p.id === targetItem?.produk_id)
     if (product?.stockable) {
-      const availableStock = getProductStock(produkId)
+      const availableStock = getProductStock(product.id)
       if (newQuantity > availableStock) {
         toast.error(`Stok tidak mencukupi! Stok tersedia: ${availableStock}`)
         newQuantity = availableStock
@@ -210,13 +222,13 @@ export const Kasir = () => {
 
     setLocalCart(prevCart =>
       prevCart.map(item =>
-        item.produk_id === produkId ? { ...item, quantity: newQuantity } : item
+        item.line_id === lineId ? { ...item, quantity: newQuantity } : item
       )
     )
   }
 
-  const handleRemoveItem = (produkId: number) => {
-    setLocalCart(prevCart => prevCart.filter(item => item.produk_id !== produkId))
+  const handleRemoveItem = (lineId: string) => {
+    setLocalCart(prevCart => prevCart.filter(item => item.line_id !== lineId))
     toast.success('Produk dihapus dari keranjang!')
   }
 
@@ -280,7 +292,10 @@ export const Kasir = () => {
     formData.append('items', JSON.stringify(localCart.map(item => ({
       produk_id: item.produk_id,
       quantity: item.quantity,
-      harga_satuan: item.produk && item.produk.harga ? item.produk.harga : 0
+      harga_satuan: item.produk && item.produk.harga ? item.produk.harga : 0,
+      coffee_strength: item.coffee_strength,
+      coffee_grams: item.coffee_grams,
+      target_material_id: resolveCoffeeMaterialId(item.produk)
     }))))
 
     // Prepare data in the format expected by CreateOrderRequest
@@ -298,9 +313,12 @@ export const Kasir = () => {
         produk_id: item.produk_id,
         quantity: item.quantity,
         harga_satuan: item.produk?.harga || 0,
+        coffee_strength: item.coffee_strength,
+        coffee_grams: item.coffee_grams,
+        target_material_id: resolveCoffeeMaterialId(item.produk)
       }))
     };
-
+    
     createOrder.mutate(orderRequest, {
       onSuccess: () => {
         setLocalCart([]);
@@ -311,6 +329,41 @@ export const Kasir = () => {
         setShowCart(false)
       }
     })
+  }
+
+  const itemIsCoffee = (item: { produk: any }) => {
+    const p = item?.produk
+    return isProductCoffee(p)
+  }
+
+  const resolveCoffeeMaterialId = (product: any): number | undefined => {
+    try {
+      const rm: any[] = product?.resep?.recipe_materials || []
+      const flagged = rm.find((x: any) => x?.material?.is_bahan_kopi)
+      if (flagged) return flagged.material_id
+      const byName = rm.find((x: any) => {
+        const nama = x?.material?.name || x?.material?.nama || ''
+        const lower = (nama || '').toLowerCase()
+        return lower.includes('kopi') || lower.includes('coffee') || lower.includes('espresso')
+      })
+      if (byName) return byName.material_id
+      const byUnit = rm.find((x: any) => (x?.unit || '').toLowerCase().includes('gram'))
+      if (byUnit) return byUnit.material_id
+      return undefined
+    } catch (e) {
+      return undefined
+    }
+  }
+
+  const isProductCoffee = (product: any): boolean => {
+    try {
+      const flagged = !!(product?.resep?.is_kopi)
+      const namaKategori = (product?.kategori?.nama || '').toLowerCase()
+      const kategoriMatch = namaKategori.includes('kopi') || namaKategori.includes('coffee')
+      return flagged || kategoriMatch
+    } catch (e) {
+      return false
+    }
   }
 
 
@@ -589,41 +642,41 @@ export const Kasir = () => {
           {showCart && (
           <CartSidebar
             cart={localCart}
-              total={total}
-              subtotal={subtotal}
-              amountPaid={amountPaid}
-              kembalian={kembalian}
-              paymentMethod={paymentMethod}
-              paymentStatus={paymentStatus}
-              notes={notes}
-              clientName={clientName}
-              qrisImage={qrisImage}
-              onClose={() => setShowCart(false)}
-              onPaymentMethodChange={setPaymentMethod}
-              onPaymentStatusChange={setPaymentStatus}
-              onNotesChange={setNotes}
-              onClientNameChange={setClientName}
-              onQrisImageChange={setQrisImage}
-              onAmountPaidChange={setAmountPaid}
+            total={total}
+            subtotal={subtotal}
+            amountPaid={amountPaid}
+            kembalian={kembalian}
+            paymentMethod={paymentMethod}
+            paymentStatus={paymentStatus}
+            notes={notes}
+            clientName={clientName}
+            qrisImage={qrisImage}
+            onClose={() => setShowCart(false)}
+            onPaymentMethodChange={setPaymentMethod}
+            onPaymentStatusChange={setPaymentStatus}
+            onNotesChange={setNotes}
+            onClientNameChange={setClientName}
+            onQrisImageChange={setQrisImage}
+            onAmountPaidChange={setAmountPaid}
             onQuantityChange={handleQuantityChange}
             onRemoveItem={handleRemoveItem}
             onCoffeeOptionChange={handleCoffeeOptionChange}
             onCheckout={handleCheckout}
-              onPrintReceipt={() => printReceipt(
-                localCart,
-                total,
-                paymentMethod,
-                notes,
-                undefined,
-                undefined,
-                clientName,
-                typeof amountPaid === 'number' ? amountPaid : undefined,
-                kembalian > 0 ? kembalian : undefined
-              )}
-              onPrintLabel={() => printLabel(localCart, clientName, undefined, undefined)}
-              getProductStock={getProductStock}
-              isCheckoutPending={createOrder.isPending}
-            />
+            onPrintReceipt={() => printReceipt(
+              localCart,
+              total,
+              paymentMethod,
+              notes,
+              undefined,
+              undefined,
+              clientName,
+              typeof amountPaid === 'number' ? amountPaid : undefined,
+              kembalian > 0 ? kembalian : undefined
+            )}
+            onPrintLabel={() => printLabel(localCart, clientName, undefined, undefined)}
+            getProductStock={getProductStock}
+            isCheckoutPending={createOrder.isPending}
+          />
           )}
         </div>
       </div>

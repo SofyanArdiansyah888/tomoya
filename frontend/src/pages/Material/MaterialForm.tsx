@@ -33,6 +33,7 @@ export const MaterialForm = ({ material, onSubmit, onCancel, isSaving = false }:
     nilai_konversi: '',
     barcode: '',
     is_active: true,
+    is_bahan_kopi: false,
   })
 
   useEffect(() => {
@@ -51,6 +52,7 @@ export const MaterialForm = ({ material, onSubmit, onCancel, isSaving = false }:
         nilai_konversi: material?.nilai_konversi?.toString(),
         barcode: material.barcode || '',
         is_active: material.is_active,
+        is_bahan_kopi: !!material.is_bahan_kopi,
       })
     } else {
       setFormData({
@@ -67,6 +69,7 @@ export const MaterialForm = ({ material, onSubmit, onCancel, isSaving = false }:
         nilai_konversi: '',
         barcode: '',
         is_active: true,
+        is_bahan_kopi: false,
       })
     }
   }, [material])
@@ -259,6 +262,14 @@ export const MaterialForm = ({ material, onSubmit, onCancel, isSaving = false }:
             onCheckedChange={(checked: boolean) => handleChange('is_active', checked)}
           />
           <Label htmlFor="is_active">Material Aktif</Label>
+        </div>
+        <div className="flex items-center space-x-2">
+          <Switch
+            id="is_bahan_kopi"
+            checked={formData.is_bahan_kopi}
+            onCheckedChange={(checked: boolean) => handleChange('is_bahan_kopi', checked)}
+          />
+          <Label htmlFor="is_bahan_kopi">Bahan Kopi</Label>
         </div>
       </div>
 
