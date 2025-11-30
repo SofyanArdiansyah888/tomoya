@@ -14,6 +14,7 @@ class HppMaterialResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $mixUnitHpp = $this->getMixPreparationUnitHpp();
         $latestHpp = $this->getLatestHpp();
         $latestPurchase = \App\Models\ItemPembelian::where('material_id', $this->id)
             ->orderBy('created_at', 'desc')
@@ -22,11 +23,14 @@ class HppMaterialResource extends JsonResource
             ->first();
 
         $conversion = $this->nilai_konversi ? (float) $this->nilai_konversi : 0.0;
-        $basePriceRaw = $latestHpp !== null ? (float) $latestHpp : (float) $this->purchase_price;
-        $hppUnitPrice = $conversion > 0
-            ? ($basePriceRaw / $conversion)
-            : $basePriceRaw;
-        $hppUnitPrice = round($hppUnitPrice, 2);
+        if ($mixUnitHpp !== null) {
+            $basePriceRaw = (float) $mixUnitHpp;
+            $hppUnitPrice = (float) $mixUnitHpp; // sudah per unit, tidak dibagi konversi
+        } else {
+            $basePriceRaw = $latestHpp !== null ? (float) $latestHpp : (float) $this->purchase_price;
+            $hppUnitPrice = $conversion > 0 ? ($basePriceRaw / $conversion) : $basePriceRaw;
+            $hppUnitPrice = round($hppUnitPrice, 2);
+        }
 
         return [
             'id' => $this->id,
@@ -42,6 +46,7 @@ class HppMaterialResource extends JsonResource
             'is_active' => $this->is_active,
             'hpp' => $basePriceRaw,
             'hpp_unit_price' => $hppUnitPrice,
+            'hpp_source' => $mixUnitHpp !== null ? 'mix_preparation' : ($latestHpp !== null ? 'purchase' : 'purchase_fallback'),
             'latest_purchase' => $latestPurchase ? [
                 'id' => $latestPurchase->id,
                 'harga_satuan' => (float) $latestPurchase->harga_satuan,

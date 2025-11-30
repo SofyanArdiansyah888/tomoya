@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Badge } from '../../components/ui/badge'
 import { HppMaterial } from '../../types/hpp'
 import { formatPrice, formatPriceWithDecimals } from '../../lib/formatPrice'
-import { Calendar, Package, Building } from 'lucide-react'
+import { Calendar, Package, Building, FlaskConical, ShoppingCart } from 'lucide-react'
 
 interface HppMaterialDetailModalProps {
   material: HppMaterial
@@ -78,6 +78,23 @@ export const HppMaterialDetailModal = ({
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Sumber HPP */}
+            <div className="flex items-center gap-2">
+              <label className="text-sm font-medium text-gray-500">Sumber HPP</label>
+              {material.hpp_source === 'mix_preparation' ? (
+                <Badge className="bg-purple-100 text-purple-800 border-purple-200">
+                  <FlaskConical className="w-3 h-3 mr-1" /> Mix Preparation
+                </Badge>
+              ) : material.hpp_source === 'purchase' ? (
+                <Badge className="bg-blue-100 text-blue-800 border-blue-200">
+                  <ShoppingCart className="w-3 h-3 mr-1" /> Pembelian Terbaru
+                </Badge>
+              ) : (
+                <Badge className="bg-gray-100 text-gray-800 border-gray-200">
+                  <ShoppingCart className="w-3 h-3 mr-1" /> Fallback Harga Beli
+                </Badge>
+              )}
+            </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-sm font-medium text-gray-500">Harga Beli Default</label>
