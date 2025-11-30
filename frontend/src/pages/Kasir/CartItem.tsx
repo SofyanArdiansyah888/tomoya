@@ -50,7 +50,7 @@ export const CartItem = ({
 
   const handleSelectStrength = (s: 'strong' | 'medium' | 'soft' | 'other') => {
     setStrength(s)
-    const defaultGrams = strengthDefaults[s]
+    const defaultGrams = s ? strengthDefaults[s] : 0
     setGrams(defaultGrams)
     onCoffeeOptionChange(item.line_id, s, defaultGrams)
   }
