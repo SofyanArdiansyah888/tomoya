@@ -8,6 +8,7 @@ use App\Models\ItemPesanan;
 use App\Models\ArusKas;
 use App\Models\ItemLokasi;
 use App\Models\Produk;
+use App\Models\Material;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -16,6 +17,40 @@ use App\Http\Resources\PesananResource;
 
 class PesananController extends Controller
 {
+    /**
+     * Hitung HPP per unit untuk item pesanan berdasarkan resep dan kondisi kopi.
+     */
+    private function calculateItemHpp(Produk $produk, array $item): float
+    {
+        $resep = $produk->resep;
+        if (!$resep || !$resep->recipeMaterials) {
+            return 0.0;
+        }
+
+        $coffeeGrams = isset($item['coffee_grams']) ? (float) $item['coffee_grams'] : null;
+        $targetMaterialId = isset($item['target_material_id']) ? (int) $item['target_material_id'] : null;
+
+        $totalCost = 0.0;
+        foreach ($resep->recipeMaterials as $recipeMaterial) {
+            if (!$recipeMaterial || !$recipeMaterial->material) {
+                continue;
+            }
+
+            $material = $recipeMaterial->material;
+            $qtyPerProduct = (float) $recipeMaterial->quantity;
+
+            // Jika material kopi dan ada input coffee_grams (atau target material kopi), pakai qty custom
+            if ($coffeeGrams !== null && ($material->is_bahan_kopi || ($targetMaterialId && $material->id === $targetMaterialId))) {
+                $qtyPerProduct = $coffeeGrams;
+            }
+
+            $unitHpp = $material->getEffectiveUnitHpp();
+            $totalCost += $qtyPerProduct * $unitHpp;
+        }
+
+        return round($totalCost, 2);
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -190,23 +225,26 @@ class PesananController extends Controller
 
             // 2. Buat item pesanan dan kurangi stok material
             foreach ($request->items as $item) {
-                ItemPesanan::create([
-                    'pesanan_id' => $pesanan->id,
-                    'produk_id' => $item['produk_id'],
-                    'quantity' => $item['quantity'],
-                    'harga' => $item['harga_satuan'],
-                ]);
-
-                // 3. Kurangi stok material berdasarkan resep produk (hanya untuk produk stockable)
                 $produk = Produk::with(['resep.recipeMaterials.material'])->find($item['produk_id']);
-                
                 if (!$produk) {
                     DB::rollback();
                     return response()->json([
                         'message' => "Produk dengan ID {$item['produk_id']} tidak ditemukan",
                     ], 404);
                 }
-                
+
+                // Ambil HPP per unit dengan mempertimbangkan coffee_grams/target kopi
+                $hppPerUnit = $this->calculateItemHpp($produk, $item);
+
+                ItemPesanan::create([
+                    'pesanan_id' => $pesanan->id,
+                    'produk_id' => $item['produk_id'],
+                    'quantity' => $item['quantity'],
+                    'harga' => $item['harga_satuan'],
+                    'hpp' => $hppPerUnit,
+                ]);
+
+                // 3. Kurangi stok material berdasarkan resep produk (hanya untuk produk stockable)
                 if ($produk->stockable && $produk->resep && $produk->resep->recipeMaterials) {
                     $coffeeGrams = isset($item['coffee_grams']) ? (float) $item['coffee_grams'] : null;
                     $targetMaterialId = isset($item['target_material_id']) ? (int) $item['target_material_id'] : null;
@@ -237,13 +275,13 @@ class PesananController extends Controller
                         // Validasi stok tersedia
                         $currentStock = ItemLokasi::getCurrentStock($request->lokasi_id, $materialId);
                         
-                        if ($currentStock < $totalRequiredQuantity) {
-                            $materialName = $recipeMaterial->material ? $recipeMaterial->material->nama : "Material ID: {$materialId}";
-                            DB::rollback();
-                            return response()->json([
-                                'message' => "Stok material tidak mencukupi untuk produk {$produk->nama}. Material: {$materialName}, Stok tersedia: {$currentStock}, Dibutuhkan: {$totalRequiredQuantity}",
-                            ], 400);
-                        }
+                        // if ($currentStock < $totalRequiredQuantity) {
+                        //     $materialName = $recipeMaterial->material ? $recipeMaterial->material->nama : "Material ID: {$materialId}";
+                        //     DB::rollback();
+                        //     return response()->json([
+                        //         'message' => "Stok material tidak mencukupi untuk produk {$produk->nama}. Material: {$materialName}, Stok tersedia: {$currentStock}, Dibutuhkan: {$totalRequiredQuantity}",
+                        //     ], 400);
+                        // }
                         
                         // Hitung stok setelah pengurangan
                         $quantityAfter = $currentStock - $totalRequiredQuantity;
@@ -483,14 +521,6 @@ class PesananController extends Controller
 
                 // Create new items and reduce stock
                 foreach ($request->items as $item) {
-                    ItemPesanan::create([
-                        'pesanan_id' => $pesanan->id,
-                        'produk_id' => $item['produk_id'],
-                        'quantity' => $item['quantity'],
-                        'harga' => $item['harga_satuan'],
-                    ]);
-
-                    // Reduce stock for new items
                     $produk = Produk::with(['resep.recipeMaterials.material'])->find($item['produk_id']);
                     
                     if (!$produk) {
@@ -499,7 +529,18 @@ class PesananController extends Controller
                             'message' => "Produk dengan ID {$item['produk_id']} tidak ditemukan",
                         ], 404);
                     }
-                    
+
+                    $hppPerUnit = $this->calculateItemHpp($produk, $item);
+
+                    ItemPesanan::create([
+                        'pesanan_id' => $pesanan->id,
+                        'produk_id' => $item['produk_id'],
+                        'quantity' => $item['quantity'],
+                        'harga' => $item['harga_satuan'],
+                        'hpp' => $hppPerUnit,
+                    ]);
+
+                    // Reduce stock for new items
                     if ($produk->stockable && $produk->resep && $produk->resep->recipeMaterials) {
                         $coffeeGrams = isset($item['coffee_grams']) ? (float) $item['coffee_grams'] : null;
                         $targetMaterialId = isset($item['target_material_id']) ? (int) $item['target_material_id'] : null;

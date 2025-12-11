@@ -14,11 +14,13 @@ class ItemPesanan extends Model
         'produk_id',
         'quantity',
         'harga',
+        'hpp',
     ];
 
     protected $casts = [
         'quantity' => 'integer',
         'harga' => 'decimal:2',
+        'hpp' => 'decimal:2',
     ];
 
     public function pesanan(): BelongsTo

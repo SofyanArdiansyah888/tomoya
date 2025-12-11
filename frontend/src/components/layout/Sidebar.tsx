@@ -115,6 +115,7 @@ export const Sidebar = ({ isOpen = true, onClose }: SidebarProps) => {
       items: [
         { name: 'HPP Material', href: '/hpp/material', icon: Calculator },
         { name: 'HPP Resep', href: '/hpp/resep', icon: FileText },
+        { name: 'HPP Penjualan', href: '/hpp/penjualan', icon: Receipt },
       ]
     }
   ]

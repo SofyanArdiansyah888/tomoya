@@ -152,10 +152,10 @@ export const Kasir = () => {
     if (!product) return
 
     // Check if product is out of stock (only for stockable products)
-    if (product.stockable && isProductOutOfStock(product)) {
-      toast.error('Produk sedang habis stok!')
-      return
-    }
+    // if (product.stockable && isProductOutOfStock(product)) {
+    //   toast.error('Produk sedang habis stok!')
+    //   return
+    // }
 
     // Get current stock
     const availableStock = product.stockable ? getProductStock(productId) : Infinity
@@ -164,10 +164,10 @@ export const Kasir = () => {
     const newQuantity = currentQuantity + quantity
 
     // Check if adding would exceed available stock
-    if (product.stockable && newQuantity > availableStock) {
-      toast.error(`Stok tidak mencukupi! Stok tersedia: ${availableStock}`)
-      return
-    }
+    // if (product.stockable && newQuantity > availableStock) {
+    //   toast.error(`Stok tidak mencukupi! Stok tersedia: ${availableStock}`)
+    //   return
+    // }
 
     if (!product.resep && product.resep_id) {
       try {
@@ -188,7 +188,7 @@ export const Kasir = () => {
       return [...prevCart, {
         line_id: generateLineId(),
         produk_id: productId,
-        quantity: Math.min(quantity, availableStock),
+        quantity: 1,//Math.min(quantity, availableStock),
         produk: product
       }]
     })
@@ -210,15 +210,15 @@ export const Kasir = () => {
     }
 
     // Get product and check stock limit
-    const targetItem = localCart.find(i => i.line_id === lineId)
-    const product = products?.data?.find((p: any) => p.id === targetItem?.produk_id)
-    if (product?.stockable) {
-      const availableStock = getProductStock(product.id)
-      if (newQuantity > availableStock) {
-        toast.error(`Stok tidak mencukupi! Stok tersedia: ${availableStock}`)
-        newQuantity = availableStock
-      }
-    }
+    // const targetItem = localCart.find(i => i.line_id === lineId)
+    // const product = products?.data?.find((p: any) => p.id === targetItem?.produk_id)
+    // if (product?.stockable) {
+    //   const availableStock = getProductStock(product.id)
+    //   if (newQuantity > availableStock) {
+    //     toast.error(`Stok tidak mencukupi! Stok tersedia: ${availableStock}`)
+    //     newQuantity = availableStock
+    //   }
+    // }
 
     setLocalCart(prevCart =>
       prevCart.map(item =>
@@ -269,15 +269,15 @@ export const Kasir = () => {
     }
 
     // Validate stock before checkout
-    for (const item of localCart) {
-      if (item.produk?.stockable) {
-        const availableStock = getProductStock(item.produk_id)
-        if (item.quantity > availableStock) {
-          toast.error(`${item.produk?.nama}: Stok tidak mencukupi! Stok tersedia: ${availableStock}`)
-          return
-        }
-      }
-    }
+    // for (const item of localCart) {
+    //   if (item.produk?.stockable) {
+    //     const availableStock = getProductStock(item.produk_id)
+    //     if (item.quantity > availableStock) {
+    //       toast.error(`${item.produk?.nama}: Stok tidak mencukupi! Stok tersedia: ${availableStock}`)
+    //       return
+    //     }
+    //   }
+    // }
 
     // Create FormData for file upload
     const formData = new FormData()
