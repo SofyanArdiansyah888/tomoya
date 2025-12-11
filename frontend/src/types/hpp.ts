@@ -85,3 +85,42 @@ export interface HppRecipeFilters {
   is_active?: boolean;
 }
 
+export interface HppPenjualanFilters {
+  search?: string;
+  date_from?: string;
+  date_to?: string;
+  produk_id?: number;
+  per_page?: number;
+}
+
+export interface HppPenjualanItem {
+  produk_id: number;
+  produk_nama: string;
+  produk_kode?: string | null;
+  total_qty: number;
+  avg_harga: number;
+  avg_hpp: number;
+  total_harga: number;
+  total_hpp: number;
+  margin: number;
+}
+
+export interface HppPenjualanSummary {
+  total_penjualan: number;
+  total_hpp: number;
+  total_margin: number;
+}
+
+export interface HppPenjualanResponse {
+  data: HppPenjualanItem[];
+  meta?: {
+    current_page: number;
+    last_page: number;
+    per_page: number;
+    total: number;
+    from: number | null;
+    to: number | null;
+  };
+  summary?: HppPenjualanSummary;
+}
+

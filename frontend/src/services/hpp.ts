@@ -1,5 +1,14 @@
 import { api } from './api'
-import { HppMaterial, HppMaterialDetail, HppRecipe, HppRecipeDetail, HppMaterialFilters, HppRecipeFilters } from '../types/hpp'
+import {
+  HppMaterial,
+  HppMaterialDetail,
+  HppRecipe,
+  HppRecipeDetail,
+  HppMaterialFilters,
+  HppRecipeFilters,
+  HppPenjualanFilters,
+  HppPenjualanResponse,
+} from '../types/hpp'
 
 export const hppService = {
   /**
@@ -35,6 +44,14 @@ export const hppService = {
    */
   async getHppRecipe(id: number): Promise<{ data: HppRecipeDetail }> {
     const response = await api.get(`/hpp/recipe/${id}`)
+    return response.data
+  },
+
+  /**
+   * Get HPP Penjualan (sold items with HPP & margin)
+   */
+  async getHppPenjualan(filters?: HppPenjualanFilters): Promise<HppPenjualanResponse> {
+    const response = await api.get('/hpp/penjualan', { params: filters })
     return response.data
   }
 }

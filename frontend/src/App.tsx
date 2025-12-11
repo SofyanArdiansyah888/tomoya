@@ -23,6 +23,7 @@ import { UserPage } from './pages/User/UserPage'
 import { ShiftKasirPage } from './pages/ShiftKasir/ShiftKasirPage'
 import { HppMaterialPage } from './pages/Hpp/HppMaterialPage'
 import { HppResepPage } from './pages/Hpp/HppResepPage'
+import { HppPenjualanPage } from './pages/Hpp/HppPenjualanPage'
 import { ProtectedRoute } from './router/ProtectedRoute'
 import { MixPreparation } from './pages/MixPreparation/MixPreparation'
 
@@ -86,6 +87,7 @@ function App() {
           {/* HPP Management */}
           <Route path="hpp/material" element={<HppMaterialPage />} />
           <Route path="hpp/resep" element={<HppResepPage />} />
+          <Route path="hpp/penjualan" element={<HppPenjualanPage />} />
         </Route>
 
         {/* Error Pages */}

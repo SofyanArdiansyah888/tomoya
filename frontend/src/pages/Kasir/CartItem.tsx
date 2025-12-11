@@ -152,10 +152,10 @@ export const CartItem = ({
                 size="icon"
                 className="h-7 w-7 px-0"
                 onClick={() => onQuantityChange(item.line_id, item.quantity + 1)}
-                disabled={
-                  item.produk?.stockable &&
-                  item.quantity >= availableStock
-                }
+                // disabled={
+                //   item.produk?.stockable &&
+                //   item.quantity >= availableStock
+                // }
                 aria-label="Tambah"
                 tabIndex={0}
               >

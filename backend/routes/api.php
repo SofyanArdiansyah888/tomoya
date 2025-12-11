@@ -22,6 +22,7 @@ use App\Modules\Pengeluaran\PengeluaranController;
 use App\Modules\Pembelian\PembelianController;
 use App\Modules\ShiftKasir\ShiftKasirController;
 use App\Modules\Hpp\HppController;
+use App\Modules\Hpp\HppPenjualanController;
 
 
 /*
@@ -40,8 +41,8 @@ Route::post('/register', [AutentikasiController::class, 'register']);
 Route::post('/login', [AutentikasiController::class, 'login']);
 
 // Protected routes
-Route::middleware('auth:sanctum')->group(function () {
-    // User routes
+Route::middleware(['auth:sanctum', 'api.auth'])->group(function () {
+    // User routes 
     Route::get('/user', [AutentikasiController::class, 'me']);
     Route::post('/logout', [AutentikasiController::class, 'logout']);
 
@@ -107,6 +108,7 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::get('hpp/material/{id}', [HppController::class, 'showMaterial']);
     Route::get('hpp/recipes', [HppController::class, 'indexRecipes']);
     Route::get('hpp/recipe/{id}', [HppController::class, 'showRecipe']);
+    Route::get('hpp/penjualan', [HppPenjualanController::class, 'index']);
 
     // Arus Kas API
     Route::get('arus-kas', [ArusKasController::class, 'index']);

@@ -12,6 +12,9 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->alias([
+            'api.auth' => \App\Http\Middleware\ApiAuth::class,
+        ]); 
         // Enable CORS for API routes - use both Laravel's HandleCors and custom Cors middleware
         $middleware->api(prepend: [
             \App\Http\Middleware\Cors::class,
