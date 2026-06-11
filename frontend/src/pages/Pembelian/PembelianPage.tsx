@@ -315,6 +315,13 @@ export const PembelianPage = () => {
               <div className="space-y-1">
                 <div className="flex items-center space-x-2 text-sm text-gray-500">
                   <User className="h-4 w-4" />
+                  <span>User</span>
+                </div>
+                <p className="text-lg font-medium text-gray-900">{viewingPurchase.user?.name || '-'}</p>
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center space-x-2 text-sm text-gray-500">
+                  <User className="h-4 w-4" />
                   <span>Supplier</span>
                 </div>
                 <p className="text-lg font-medium text-gray-900">{viewingPurchase.supplier?.nama || '-'}</p>

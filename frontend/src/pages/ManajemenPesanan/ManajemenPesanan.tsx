@@ -301,6 +301,7 @@ export const ManajemenPesanan = () => {
                     <TableHead className="min-w-[50px]">Items</TableHead>
                     <TableHead className="w-[130px]">Status</TableHead>
                     <TableHead className="w-[130px]">Metode</TableHead>
+                    <TableHead className="w-[140px]">User</TableHead>
                     <TableHead className="min-w-[150px] max-w-[200px]">Catatan</TableHead>
                     <TableHead className="text-right w-[160px]">Pembayaran</TableHead>
                     <TableHead className="w-[220px]">Aksi</TableHead>
@@ -399,6 +400,9 @@ export const ManajemenPesanan = () => {
                         <Badge variant="outline" className="text-xs py-0.5">
                           {getPaymentMethodLabel(order.metode_pembayaran)}
                         </Badge>
+                      </TableCell>
+                      <TableCell>
+                        <span className="text-sm text-gray-900">{order.user?.name || '-'}</span>
                       </TableCell>
                       <TableCell>
                         {order.catatan ? (

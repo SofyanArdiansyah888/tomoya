@@ -28,6 +28,11 @@ export interface Pesanan {
     nama: string;
     alamat: string;
   }; // Keep for backward compatibility
+  user?: {
+    id: number;
+    name: string;
+    email?: string;
+  };
 }
 
 export interface ItemPesanan {

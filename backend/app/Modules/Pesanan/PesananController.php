@@ -9,6 +9,7 @@ use App\Models\ArusKas;
 use App\Models\ItemLokasi;
 use App\Models\Produk;
 use App\Models\Material;
+use App\Models\ShiftKasir;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,12 @@ use App\Http\Resources\ApiResource;
 use App\Http\Resources\PesananResource;
 
 class PesananController extends Controller
-{
+{ 
+    private function resolveUserId(Request $request): int
+    {
+        return $request->user()?->id ?? 1;
+    }
+
     /**
      * Hitung HPP per unit untuk item pesanan berdasarkan resep dan kondisi kopi.
      */
@@ -61,7 +67,7 @@ class PesananController extends Controller
         
         // Get all orders from default location (shop)
         $query = Pesanan::where('lokasi_id', $defaultLokasiId)
-            ->with(['itemPesanan.produk.kategori', 'lokasi']);
+            ->with(['itemPesanan.produk.kategori', 'lokasi', 'user']);
 
         // Filter by date range
         if ($request->has('date_from') && $request->date_from) {
@@ -174,20 +180,8 @@ class PesananController extends Controller
             $kembalian = $request->kembalian;
         }
 
-        // Get user ID safely
-        // $user = $request->user();
-        // if (!$user) {
-        //     return response()->json([
-        //         'message' => 'User tidak terautentikasi. Silakan login terlebih dahulu.'
-        //     ], 401);
-        // }
-        $userId = 1;//$user->id;
-
-        // Cek apakah ada shift aktif untuk user dan lokasi
-        $shiftAktif = \App\Models\ShiftKasir::where('user_id', $userId)
-            ->where('lokasi_id', $request->lokasi_id)
-            ->where('status', 'open')
-            ->first();
+        $userId = $this->resolveUserId($request);
+        $shiftAktif = ShiftKasir::findActiveForLokasi((int) $request->lokasi_id, $userId);
 
         // Handle gambar QRIS upload
         $gambarQrisPath = null;
@@ -342,8 +336,8 @@ class PesananController extends Controller
      * Display the specified resource.
      */
     public function show(string $id): JsonResponse
-    {
-        $pesanan = Pesanan::with(['itemPesanan.produk.kategori', 'lokasi'])->findOrFail($id);
+    { 
+        $pesanan = Pesanan::with(['itemPesanan.produk.kategori', 'lokasi', 'user'])->findOrFail($id);
         return response()->json([
             'data' => new PesananResource($pesanan)
         ]);
@@ -397,7 +391,7 @@ class PesananController extends Controller
 
         $request->validate($validationRules);
 
-        $userId = 1; // $request->user()->id;
+        $userId = $this->resolveUserId($request);
         $newStatus = $request->status;
 
         // Calculate subtotal and kembalian if provided
@@ -438,10 +432,12 @@ class PesananController extends Controller
                     ->first();
 
                 if (!$existingArusKas) {
-                    $shiftAktif = \App\Models\ShiftKasir::where('user_id', $userId)
-                        ->where('lokasi_id', $pesanan->lokasi_id)
-                        ->where('status', 'open')
-                        ->first();
+                    $shiftAktif = ShiftKasir::findActiveForLokasi((int) $pesanan->lokasi_id, $userId);
+
+                    if ($shiftAktif && !$pesanan->shift_id) {
+                        $pesanan->shift_id = $shiftAktif->id;
+                        $pesanan->save();
+                    }
                     
                     ArusKas::create([
                         'user_id' => $userId,

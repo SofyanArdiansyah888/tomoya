@@ -104,6 +104,7 @@ export const ArusKasTable = ({
                 <TableHead>Deskripsi</TableHead>
                 <TableHead>Jenis</TableHead>
                 <TableHead>Kategori & Sub Kategori</TableHead>
+                <TableHead>User</TableHead>
                 <TableHead>Metode Pembayaran</TableHead>
                 {/* <TableHead>Lokasi</TableHead> */}
                 <TableHead className="text-right w-[150px]">Jumlah</TableHead>
@@ -147,6 +148,9 @@ export const ArusKasTable = ({
                         <span className="text-gray-400 text-xs ml-6">-</span>
                       )}
                     </div>
+                  </TableCell>
+                  <TableCell>
+                    <span className="text-sm text-gray-900">{cashFlow.user?.name || '-'}</span>
                   </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">

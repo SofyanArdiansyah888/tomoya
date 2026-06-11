@@ -254,13 +254,12 @@ export const Kasir = () => {
       return
     }
 
-    // Validate payment amount for cash payment
-    if (paymentStatus === 'bayar') {
+    // Validate payment amount only for cash payment
+    if (paymentStatus === 'bayar' && paymentMethod === 'cash') {
       if (typeof amountPaid !== 'number' || amountPaid <= 0) {
         toast.error('Masukkan jumlah uang yang dibayar!')
         return
       }
-      // Use subtotal for validation (subtotal should equal total in this case)
       const amountToCheck = subtotal > 0 ? subtotal : total
       if (amountPaid < amountToCheck) {
         toast.error(`Uang dibayar (${formatPrice(amountPaid)}) tidak boleh kurang dari total (${formatPrice(amountToCheck)})!`)

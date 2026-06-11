@@ -69,6 +69,6 @@ class Pesanan extends Model
 
     public function shiftKasir(): BelongsTo
     {
-        return $this->belongsTo(ShiftKasir::class);
+        return $this->belongsTo(ShiftKasir::class, 'shift_id'); 
     }
 }

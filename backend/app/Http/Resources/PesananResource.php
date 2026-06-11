@@ -71,7 +71,14 @@ class PesananResource extends JsonResource
                     'nama' => $this->lokasi->nama,
                     'alamat' => $this->lokasi->alamat ?? '',
                 ];
-            }), // Keep for backward compatibility
+            }), // Keep for backward compatibility 
+            'user' => $this->whenLoaded('user', function () {
+                return [
+                    'id' => $this->user->id,
+                    'name' => $this->user->name,
+                    'email' => $this->user->email,
+                ];
+            }),
         ];
     }
 }

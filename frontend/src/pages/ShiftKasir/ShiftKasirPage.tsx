@@ -25,6 +25,7 @@ export const ShiftKasirPage = () => {
   const { toast } = useToast()
   const [showBukaModal, setShowBukaModal] = useState(false)
   const [showTutupModal, setShowTutupModal] = useState(false)
+  const [showDetailModal, setShowDetailModal] = useState(false)
   const [selectedShift, setSelectedShift] = useState<ShiftKasir | null>(null)
   const [showInputPemasukanModal, setShowInputPemasukanModal] = useState(false)
   const [filters, _] = useState<ShiftFilters>({
@@ -116,23 +117,9 @@ export const ShiftKasirPage = () => {
     }
   }
 
-  const handleViewShift = async (shift: ShiftKasir) => {
-    try {
-      const detail = await shiftService.getShiftDetail(shift.id)
-      setSelectedShift(detail)
-      setShowTutupModal(false)
-      // Could open a detail modal here
-      toast({
-        title: 'Detail Shift',
-        description: `Shift #${shift.id} - ${shift.status === 'open' ? 'Aktif' : 'Ditutup'}`,
-      })
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: 'Gagal memuat detail shift',
-        variant: 'destructive'
-      })
-    }
+  const handleViewShift = (shift: ShiftKasir) => {
+    setSelectedShift(shift)
+    setShowDetailModal(true)
   }
 
   return (
@@ -162,7 +149,11 @@ export const ShiftKasirPage = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div>
+                <p className="text-sm text-gray-600">Kasir</p>
+                <p className="text-lg font-semibold">{currentShift.user?.name || '-'}</p>
+              </div>
               <div>
                 <p className="text-sm text-gray-600">Saldo Awal</p>
                 <p className="text-lg font-semibold">{formatPrice(currentShift.saldo_awal)}</p>
@@ -222,6 +213,7 @@ export const ShiftKasirPage = () => {
                     <TableHead className='w-[140px] text-center'>No</TableHead>
                     <TableHead className='w-[220px]'>Tanggal</TableHead>
                     <TableHead className='w-[260px]'>Ringkasan</TableHead>
+                    <TableHead className='w-[140px]'>Kasir</TableHead>
                     <TableHead className='w-[120px] text-center'>Status</TableHead>
                     <TableHead className='w-[120px] text-center'>Aksi</TableHead>
                   </TableRow>
@@ -267,6 +259,9 @@ export const ShiftKasirPage = () => {
                             ) : '-'}
                           </span>
                         </div>
+                      </TableCell>
+                      <TableCell className="text-xs font-medium text-gray-900">
+                        {shift.user?.name || '-'}
                       </TableCell>
                       <TableCell className="text-center">
                         <Badge
@@ -330,6 +325,17 @@ export const ShiftKasirPage = () => {
         }}
         shift={(selectedShift ?? currentShift) as ShiftKasir | null}
         onSubmit={handleTutupKasir}
+        mode="close"
+      />
+
+      <TutupKasirModal
+        isOpen={showDetailModal}
+        onClose={() => {
+          setShowDetailModal(false)
+          setSelectedShift(null)
+        }}
+        shift={selectedShift}
+        mode="view"
       />
 
       <InputPemasukanModal

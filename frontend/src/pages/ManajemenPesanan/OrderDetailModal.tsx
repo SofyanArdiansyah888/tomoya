@@ -112,6 +112,11 @@ export const OrderDetailModal = ({ isOpen, onClose, order }: OrderDetailModalPro
           )}
 
           <div>
+            <label className="text-sm font-medium text-gray-500">User</label>
+            <p className="text-base mt-1">{order.user?.name || '-'}</p>
+          </div>
+
+          <div>
             <label className="text-sm font-medium text-gray-500">Total</label>
             <p className="text-lg font-bold text-green-600 mt-1">
               {formatPrice(order.total_jumlah || order.total_harga || 0)}

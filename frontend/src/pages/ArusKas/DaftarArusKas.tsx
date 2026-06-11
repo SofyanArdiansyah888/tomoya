@@ -10,7 +10,7 @@ export const DaftarArusKas = () => {
   const [kategoriFilter, setKategoriFilter] = useState<string>('')
   const [dateFrom, setDateFrom] = useState('')
   const [dateTo, setDateTo] = useState('')
-  const [sortFilter, setSortFilter] = useState('tanggal-desc')
+  const [sortFilter, setSortFilter] = useState('created_at-desc')
 
   // API calls
   const { data: cashFlowData, isLoading, error } = useCashFlows({
@@ -18,8 +18,7 @@ export const DaftarArusKas = () => {
     jenis: jenisFilter as 'pemasukan' | 'pengeluaran' | undefined,
     kategori: kategoriFilter || undefined,
     date_from: dateFrom || undefined,
-    date_to: dateTo || undefined,
-    status: true,
+    date_to: dateTo || undefined, 
     sort_by: sortFilter.split('-')[0],
     sort_order: sortFilter.split('-')[1] as 'asc' | 'desc',
     page: 1,
@@ -28,7 +27,6 @@ export const DaftarArusKas = () => {
   const { data: stats } = useCashFlowStats({
     date_from: dateFrom || undefined,
     date_to: dateTo || undefined,
-    status: true
   })
   const { data: filterOptions } = useFilterOptions()
 
@@ -40,7 +38,7 @@ export const DaftarArusKas = () => {
     setKategoriFilter('')
     setDateFrom('')
     setDateTo('')
-    setSortFilter('tanggal-desc')
+    setSortFilter('created_at-desc')
   }
 
   return (

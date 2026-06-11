@@ -31,6 +31,11 @@ export interface Pembelian {
     tipe?: 'gudang' | 'toko';
   };
   items?: ItemPembelian[];
+  user?: {
+    id: number;
+    name: string;
+    email?: string;
+  };
 }
 
 export interface ItemPembelian {

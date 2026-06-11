@@ -5,6 +5,7 @@ import { itemLokasiService } from '../../services/inventory'
 import { cashFlowService } from '../../services/cashflow'
 import { useUnpaidOrders } from '../../hooks/useOrders'
 import { formatPrice } from '../../lib/formatPrice'
+import { formatLocalDate } from '../../lib/utils'
 import { Badge } from '../../components/ui/badge'
 import { CategorySelect } from '../../components/forms/CategorySelect'
 import { useState, useMemo } from 'react'
@@ -15,19 +16,15 @@ export const Dashboard = () => {
   const navigate = useNavigate()
   const [selectedGudangCategory, setSelectedGudangCategory] = useState<number | string>("")
   
-  // Get today's date range
+  // Tanggal lokal (WIB) — jangan pakai toISOString() karena itu UTC
   const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const todayStr = today.toISOString().split('T')[0]
-  // For today, we use the same date for both from and to
+  const todayStr = formatLocalDate(today)
   const todayEndStr = todayStr
 
-  // Get current month's date range
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
-  const monthStartStr = monthStart.toISOString().split('T')[0]
+  const monthStartStr = formatLocalDate(monthStart)
   const monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0)
-  monthEnd.setHours(23, 59, 59, 999)
-  const monthEndStr = monthEnd.toISOString().split('T')[0]
+  const monthEndStr = formatLocalDate(monthEnd)
 
   // Get low stock materials from gudang
   const { data: lowStockGudang, isLoading: loadingGudang } = useQuery({

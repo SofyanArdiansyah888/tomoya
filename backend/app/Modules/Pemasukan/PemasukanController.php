@@ -127,9 +127,9 @@ class PemasukanController extends Controller
                 'referensi_id' => $pemasukan->id,
                 'referensi_type' => Pemasukan::class,
                 'metode_pembayaran' => $metodePembayaranArusKas,
-                'status' => 'confirmed'
+                'status' => true,
             ]);
-
+ 
             DB::commit();
 
             return response()->json([
@@ -223,10 +223,10 @@ class PemasukanController extends Controller
                     'jumlah' => $pemasukan->jumlah,
                     'deskripsi' => $pemasukan->nama . ($pemasukan->deskripsi ? ': ' . $pemasukan->deskripsi : ''),
                     'tanggal' => $pemasukan->tanggal,
-                    'referensi_id' => $pemasukan->id,
+                    'referensi_id' => $pemasukan->id, 
                     'referensi_type' => Pemasukan::class,
                     'metode_pembayaran' => $pemasukan->metode_pembayaran,
-                    'status' => 'confirmed'
+                    'status' => true,
                 ]);
             }
 
@@ -280,12 +280,7 @@ class PemasukanController extends Controller
      */
     public function statistics(Request $request): JsonResponse
     {
-        // Get user ID safely
-        $user = $request->user();
-        $userId = $user ? $user->id : 1; // Fallback untuk development
-
-        $query = Pemasukan::where('user_id', $userId)
-            ->where('is_active', true); // Only count active pemasukan
+        $query = Pemasukan::where('is_active', true); // Only count active pemasukan
 
         // Filter by lokasi
         if ($request->has('lokasi_id') && $request->lokasi_id) {

@@ -101,6 +101,7 @@ export const PengeluaranTable = ({
               <TableHead>Sub Kategori</TableHead>
               <TableHead>Jumlah</TableHead>
               <TableHead>Tanggal</TableHead>
+              <TableHead>User</TableHead>
               <TableHead>Metode</TableHead>
               <TableHead className="w-[50px]">Aksi</TableHead>
             </TableRow>
@@ -140,6 +141,9 @@ export const PengeluaranTable = ({
                 </TableCell>
                 <TableCell>
                   {new Date(pengeluaran.tanggal).toLocaleDateString('id-ID')}
+                </TableCell>
+                <TableCell>
+                  <span className="text-sm">{pengeluaran.user?.name || '-'}</span>
                 </TableCell>
                 <TableCell>
                   <span className="text-sm">
