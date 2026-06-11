@@ -16,26 +16,12 @@ AddType application/x-httpd-php82 .php
 # AddHandler php82-script .php
 # Action php82-script /cgi-bin/php82
 
-# CORS Headers for API (Apache/Shared Hosting)
-<IfModule mod_headers.c>
-    # Set CORS headers for all API requests
-    Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS"
-    Header always set Access-Control-Allow-Headers "Authorization, Content-Type, Accept, X-Requested-With, X-CSRF-TOKEN, X-XSRF-TOKEN"
-    Header always set Access-Control-Expose-Headers "Authorization, X-Total-Count, X-Page, X-Per-Page"
-    Header always set Access-Control-Max-Age "86400"
-</IfModule>
-
 <IfModule mod_rewrite.c>
     <IfModule mod_negotiation.c>
         Options -MultiViews -Indexes
     </IfModule>
 
     RewriteEngine On
-
-    # Handle preflight OPTIONS requests for CORS
-    RewriteCond %{REQUEST_METHOD} OPTIONS
-    RewriteRule ^(.*)$ $1 [R=200,L,E=HTTP_ORIGIN:%{HTTP:Origin}]
 
     # Handle Authorization Header
     RewriteCond %{HTTP:Authorization} .
@@ -55,3 +41,10 @@ AddType application/x-httpd-php82 .php
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^ index.php [L]
 </IfModule>
+
+# php -- BEGIN cPanel-generated handler, do not edit
+# Set the “alt-php82” package as the default “PHP” programming language.
+<IfModule mime_module>
+  AddHandler application/x-httpd-alt-php82___lsphp .php .php8 .phtml
+</IfModule>
+# php -- END cPanel-generated handler, do not edit

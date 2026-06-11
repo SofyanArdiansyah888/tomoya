@@ -20,8 +20,7 @@ class ArusKasController extends Controller
         $user = $request->user();
         $userId = $user ? $user->id : 1; // Fallback untuk development
         
-        $query = ArusKas::with(['lokasi'])
-            ->where('user_id', $userId);
+        $query = ArusKas::with(['lokasi']);
 
         if ($request->has('status')) {
             $query->where('status', $request->boolean('status'));
@@ -104,7 +103,7 @@ class ArusKasController extends Controller
         $user = $request->user();
         $userId = $user ? $user->id : 1; // Fallback untuk development
         
-        $query = ArusKas::where('user_id', $userId);
+        $query = ArusKas::query();
         if ($request->has('status')) {
             $query->where('status', $request->boolean('status'));
         }

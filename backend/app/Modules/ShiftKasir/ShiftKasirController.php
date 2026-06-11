@@ -188,9 +188,10 @@ class ShiftKasirController extends Controller
         // Filter by user
         if ($request->has('user_id')) {
             $query->where('user_id', $request->user_id);
-        } else {
-            $query->where('user_id', $userId);
         }
+        // else {
+        //     $query->where('user_id', $userId);
+        // }
 
         // Filter by lokasi
         if ($request->has('lokasi_id')) {
