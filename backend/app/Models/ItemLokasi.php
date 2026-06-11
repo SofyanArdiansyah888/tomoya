@@ -84,12 +84,10 @@ class ItemLokasi extends Model
     }
 
     // Helper method untuk mendapatkan current stock dari history
-    // Untuk toko, hanya ambil record yang memiliki quantity_after (bukan null)
     public static function getCurrentStock($lokasiId, $materialId): int|null
     {
         $latest = static::where('lokasi_id', $lokasiId)
             ->where('material_id', $materialId)
-            ->whereNotNull('quantity_after')
             ->orderBy('tanggal', 'desc')
             ->orderBy('id', 'desc')
             ->first();
