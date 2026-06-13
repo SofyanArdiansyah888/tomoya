@@ -258,31 +258,20 @@ class PesananController extends Controller
                         $materialId = $recipeMaterial->material_id;
                         if (!$materialId) {
                             continue;
-                        }
+                        } 
                         
                         $requiredQuantityPerProduct = (float) $recipeMaterial->quantity;
                         if ($coffeeGrams !== null && (($targetMaterialId && $materialId === $targetMaterialId) || ($flaggedCoffeeMaterialId && $materialId === $flaggedCoffeeMaterialId))) {
                             $requiredQuantityPerProduct = (float) $coffeeGrams;
                         }
                         $totalRequiredQuantity = $requiredQuantityPerProduct * $item['quantity'];
-                        
-                        // Validasi stok tersedia
+
                         $currentStock = ItemLokasi::getCurrentStock($request->lokasi_id, $materialId);
-                        
-                        // if ($currentStock < $totalRequiredQuantity) {
-                        //     $materialName = $recipeMaterial->material ? $recipeMaterial->material->nama : "Material ID: {$materialId}";
-                        //     DB::rollback();
-                        //     return response()->json([
-                        //         'message' => "Stok material tidak mencukupi untuk produk {$produk->nama}. Material: {$materialName}, Stok tersedia: {$currentStock}, Dibutuhkan: {$totalRequiredQuantity}",
-                        //     ], 400);
-                        // }
-                        
-                        // Hitung stok setelah pengurangan
                         $quantityAfter = $currentStock - $totalRequiredQuantity;
-                        
+
                         // Buat record pergerakan stok (keluar)
                         ItemLokasi::create([
-                            'lokasi_id' => $request->lokasi_id,
+                            'lokasi_id' => $request->lokasi_id, 
                             'material_id' => $materialId,
                             'tipe' => 'keluar',
                             'quantity' => -$totalRequiredQuantity,
@@ -559,20 +548,10 @@ class PesananController extends Controller
                                 $requiredQuantityPerProduct = (float) $coffeeGrams;
                             }
                             $totalRequiredQuantity = $requiredQuantityPerProduct * $item['quantity'];
-                            
-                            // Validate stock available
+
                             $currentStock = ItemLokasi::getCurrentStock($pesanan->lokasi_id, $materialId);
-                            
-                            if ($currentStock < $totalRequiredQuantity) {
-                                $materialName = $recipeMaterial->material ? $recipeMaterial->material->nama : "Material ID: {$materialId}";
-                                DB::rollback();
-                                return response()->json([
-                                    'message' => "Stok material tidak mencukupi untuk produk {$produk->nama}. Material: {$materialName}, Stok tersedia: {$currentStock}, Dibutuhkan: {$totalRequiredQuantity}",
-                                ], 400);
-                            }
-                            
                             $quantityAfter = $currentStock - $totalRequiredQuantity;
-                            
+
                             // Record stock movement (keluar)
                             ItemLokasi::create([
                                 'lokasi_id' => $pesanan->lokasi_id,

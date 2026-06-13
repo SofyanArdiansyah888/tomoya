@@ -186,17 +186,6 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
       return
     }
 
-    // Validate stock
-    for (const item of cart) {
-      if (item.produk?.stockable) {
-        const availableStock = getProductStock(item.produk_id)
-        if (item.quantity > availableStock) {
-          toast.error(`${item.produk?.nama}: Stok tidak mencukupi! Stok tersedia: ${availableStock}`)
-          return
-        }
-      }
-    }
-
     // Build JSON payload (follow create flow)
     const itemsPayload = cart.map(item => ({
       produk_id: Number(item.produk_id),
@@ -282,14 +271,11 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
                   !cart.find(item => item.produk_id === p.id)
                 ).map((product: any) => {
                   const stock = getProductStock(product.id)
-                  const isDisabled = product.stockable && stock <= 0
-                  return (
+                  return ( 
                     <div
                       key={product.id}
-                      className={`flex items-center justify-between p-2 rounded border ${isDisabled ? 'bg-gray-100 opacity-60 cursor-not-allowed' : 'bg-white hover:bg-gray-50 cursor-pointer'}`}
-                      onClick={isDisabled ? undefined : () => handleAddProduct(product)}
-                      aria-disabled={isDisabled}
-                      title={isDisabled ? 'Stok kosong' : ''}
+                      className="flex items-center justify-between p-2 rounded border bg-white hover:bg-gray-50 cursor-pointer"
+                      onClick={() => handleAddProduct(product)}
                     >
                       <div>
                         <p className="font-medium text-sm">{product.nama}</p>
@@ -302,7 +288,7 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
                           )}
                         </p>
                       </div>
-                      <Button variant="ghost" size="sm" disabled={isDisabled}>
+                      <Button variant="ghost" size="sm">
                         <Plus className="h-4 w-4" />
                       </Button>
                     </div>

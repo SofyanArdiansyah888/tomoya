@@ -157,8 +157,6 @@ export const Kasir = () => {
     //   return
     // }
 
-    // Get current stock
-    const availableStock = product.stockable ? getProductStock(productId) : Infinity
     const existingItem = localCart.find(item => item.produk_id === productId)
     const currentQuantity = existingItem ? itemIsCoffee(existingItem) ? 0 : existingItem.quantity : 0
     const newQuantity = currentQuantity + quantity
@@ -181,7 +179,7 @@ export const Kasir = () => {
       if (!isKopi && existingItem) {
         return prevCart.map(item =>
           item.produk_id === productId
-            ? { ...item, quantity: Math.min(newQuantity, availableStock) }
+            ? { ...item, quantity: newQuantity } 
             : item
         )
       }
