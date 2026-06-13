@@ -58,6 +58,124 @@ class PesananController extends Controller
     }
 
     /**
+     * Normalisasi item pesanan untuk perbandingan perubahan.
+     */
+    private function normalizeOrderItems($items): array
+    {
+        return collect($items)->map(function ($item) {
+            $isModel = is_object($item);
+
+            return [
+                'produk_id' => (int) ($isModel ? $item->produk_id : ($item['produk_id'] ?? 0)),
+                'quantity' => (int) ($isModel ? $item->quantity : ($item['quantity'] ?? 0)),
+                'harga_satuan' => round((float) ($isModel ? $item->harga : ($item['harga_satuan'] ?? $item['harga'] ?? 0)), 2),
+                'coffee_grams' => isset($item['coffee_grams']) ? round((float) $item['coffee_grams'], 2) : null,
+                'coffee_strength' => $isModel ? null : ($item['coffee_strength'] ?? null),
+            ];
+        })->sortBy(fn ($row) => implode('-', [
+            $row['produk_id'],
+            $row['quantity'],
+            $row['harga_satuan'],
+            $row['coffee_grams'] ?? 'null',
+            $row['coffee_strength'] ?? 'null',
+        ]))->values()->all();
+    }
+
+    private function orderItemsHaveChanged($existingItems, array $newItems): bool
+    {
+        return $this->normalizeOrderItems($existingItems) !== $this->normalizeOrderItems($newItems);
+    }
+
+    /**
+     * Batalkan efek stok bersih pesanan (reverse pergerakan keluar yang masih tersisa).
+     */
+    private function reverseOrderStockMovements(Pesanan $pesanan, int $userId): void
+    {
+        $netByMaterial = ItemLokasi::where('reference_type', Pesanan::class)
+            ->where('reference_id', $pesanan->id)
+            ->selectRaw('material_id, SUM(quantity) as net_quantity')
+            ->groupBy('material_id')
+            ->get();
+
+        foreach ($netByMaterial as $row) {
+            $netQuantity = (float) $row->net_quantity;
+            if ($netQuantity >= 0) {
+                continue;
+            }
+
+            $returnQty = abs($netQuantity);
+            $currentStock = ItemLokasi::getCurrentStock($pesanan->lokasi_id, $row->material_id);
+            $quantityAfter = $currentStock + $returnQty;
+
+            ItemLokasi::create([
+                'lokasi_id' => $pesanan->lokasi_id,
+                'material_id' => $row->material_id,
+                'tipe' => 'masuk',
+                'quantity' => $returnQty,
+                'quantity_before' => $currentStock,
+                'quantity_after' => $quantityAfter,
+                'reference_type' => Pesanan::class,
+                'reference_id' => $pesanan->id,
+                'keterangan' => "Rollback penjualan (Pesanan #{$pesanan->no_pesanan} - Update)",
+                'user_id' => $userId,
+                'tanggal' => now(),
+            ]);
+        }
+    }
+
+    /**
+     * Kurangi stok material untuk satu item pesanan.
+     */
+    private function deductStockForOrderItem(Pesanan $pesanan, Produk $produk, array $item, int $userId, string $keteranganSuffix = ''): void
+    {
+        if (!$produk->stockable || !$produk->resep || !$produk->resep->recipeMaterials) {
+            return;
+        }
+
+        $coffeeGrams = isset($item['coffee_grams']) ? (float) $item['coffee_grams'] : null;
+        $targetMaterialId = isset($item['target_material_id']) ? (int) $item['target_material_id'] : null;
+        $flaggedCoffeeMaterialId = null;
+
+        foreach ($produk->resep->recipeMaterials as $rm) {
+            if ($rm && $rm->material && ($rm->material->is_bahan_kopi ?? false)) {
+                $flaggedCoffeeMaterialId = $rm->material_id;
+                break;
+            }
+        }
+
+        foreach ($produk->resep->recipeMaterials as $recipeMaterial) {
+            if (!$recipeMaterial || !$recipeMaterial->material_id) {
+                continue;
+            }
+
+            $materialId = $recipeMaterial->material_id;
+            $requiredQuantityPerProduct = (float) $recipeMaterial->quantity;
+
+            if ($coffeeGrams !== null && (($targetMaterialId && $materialId === $targetMaterialId) || ($flaggedCoffeeMaterialId && $materialId === $flaggedCoffeeMaterialId))) {
+                $requiredQuantityPerProduct = $coffeeGrams;
+            }
+
+            $totalRequiredQuantity = $requiredQuantityPerProduct * $item['quantity'];
+            $currentStock = ItemLokasi::getCurrentStock($pesanan->lokasi_id, $materialId);
+            $quantityAfter = $currentStock - $totalRequiredQuantity;
+
+            ItemLokasi::create([
+                'lokasi_id' => $pesanan->lokasi_id,
+                'material_id' => $materialId,
+                'tipe' => 'keluar',
+                'quantity' => -$totalRequiredQuantity,
+                'quantity_before' => $currentStock,
+                'quantity_after' => $quantityAfter,
+                'reference_type' => Pesanan::class,
+                'reference_id' => $pesanan->id,
+                'keterangan' => "Penjualan produk {$produk->nama} (Pesanan #{$pesanan->no_pesanan}{$keteranganSuffix})",
+                'user_id' => $userId,
+                'tanggal' => now(),
+            ]);
+        }
+    }
+
+    /**
      * Display a listing of the resource.
      */
     public function index(Request $request): JsonResponse
@@ -259,7 +377,7 @@ class PesananController extends Controller
                         if (!$materialId) {
                             continue;
                         } 
-                        
+                         
                         $requiredQuantityPerProduct = (float) $recipeMaterial->quantity;
                         if ($coffeeGrams !== null && (($targetMaterialId && $materialId === $targetMaterialId) || ($flaggedCoffeeMaterialId && $materialId === $flaggedCoffeeMaterialId))) {
                             $requiredQuantityPerProduct = (float) $coffeeGrams;
@@ -459,55 +577,22 @@ class PesananController extends Controller
                 }
             }
 
-            // Handle items update (only for unpaid orders)
-            if ($pesanan->payment_status === 'belum_bayar' && $request->has('items')) {
-                // Rollback stock: add back materials from old items
-                foreach ($pesanan->itemPesanan as $oldItem) {
-                    $produk = Produk::with(['resep.recipeMaterials.material'])->find($oldItem->produk_id);
-                    
-                    if ($produk && $produk->stockable && $produk->resep && $produk->resep->recipeMaterials) {
-                        foreach ($produk->resep->recipeMaterials as $recipeMaterial) {
-                            if (!$recipeMaterial || !$recipeMaterial->material_id) {
-                                continue;
-                            }
-                            
-                            $materialId = $recipeMaterial->material_id;
-                            $requiredQuantityPerProduct = (float)$recipeMaterial->quantity;
-                            $totalRequiredQuantity = $requiredQuantityPerProduct * $oldItem->quantity;
-                            
-                            $currentStock = ItemLokasi::getCurrentStock($pesanan->lokasi_id, $materialId);
-                            $quantityAfter = $currentStock + $totalRequiredQuantity;
-                            
-                            // Record stock movement (masuk) - rollback
-                            ItemLokasi::create([
-                                'lokasi_id' => $pesanan->lokasi_id,
-                                'material_id' => $materialId,
-                                'tipe' => 'masuk',
-                                'quantity' => $totalRequiredQuantity,
-                                'quantity_before' => $currentStock,
-                                'quantity_after' => $quantityAfter,
-                                'reference_type' => Pesanan::class,
-                                'reference_id' => $pesanan->id,
-                                'keterangan' => "Rollback penjualan produk {$produk->nama} (Pesanan #{$pesanan->no_pesanan} - Update)",
-                                'user_id' => $userId,
-                                'tanggal' => now(),
-                            ]);
-                        }
-                    }
-                }
+            // Handle items update only when item list actually changed (stock already deducted on create)
+            $itemsChanged = $request->has('items')
+                && $this->orderItemsHaveChanged($pesanan->itemPesanan, $request->items);
 
-                // Delete old items
+            if ($pesanan->payment_status === 'belum_bayar' && $itemsChanged) {
+                $this->reverseOrderStockMovements($pesanan, $userId);
+
                 $pesanan->itemPesanan()->delete();
 
-                // Calculate new total
                 $totalJumlah = collect($request->items)->sum(function ($item) {
                     return $item['quantity'] * $item['harga_satuan'];
                 });
 
-                // Create new items and reduce stock
                 foreach ($request->items as $item) {
                     $produk = Produk::with(['resep.recipeMaterials.material'])->find($item['produk_id']);
-                    
+
                     if (!$produk) {
                         DB::rollback();
                         return response()->json([
@@ -518,59 +603,16 @@ class PesananController extends Controller
                     $hppPerUnit = $this->calculateItemHpp($produk, $item);
 
                     ItemPesanan::create([
-                        'pesanan_id' => $pesanan->id,
+                        'pesanan_id' => $pesanan->id, 
                         'produk_id' => $item['produk_id'],
                         'quantity' => $item['quantity'],
                         'harga' => $item['harga_satuan'],
                         'hpp' => $hppPerUnit,
                     ]);
 
-                    // Reduce stock for new items
-                    if ($produk->stockable && $produk->resep && $produk->resep->recipeMaterials) {
-                        $coffeeGrams = isset($item['coffee_grams']) ? (float) $item['coffee_grams'] : null;
-                        $targetMaterialId = isset($item['target_material_id']) ? (int) $item['target_material_id'] : null;
-                        $flaggedCoffeeMaterialId = null;
-                        foreach ($produk->resep->recipeMaterials as $rm) {
-                            if ($rm && $rm->material && ($rm->material->is_bahan_kopi ?? false)) {
-                                $flaggedCoffeeMaterialId = $rm->material_id;
-                                break;
-                            }
-                        }
-
-                        foreach ($produk->resep->recipeMaterials as $recipeMaterial) {
-                            if (!$recipeMaterial || !$recipeMaterial->material_id) {
-                                continue;
-                            }
-                            
-                            $materialId = $recipeMaterial->material_id;
-                            $requiredQuantityPerProduct = (float) $recipeMaterial->quantity;
-                            if ($coffeeGrams !== null && (($targetMaterialId && $materialId === $targetMaterialId) || ($flaggedCoffeeMaterialId && $materialId === $flaggedCoffeeMaterialId))) {
-                                $requiredQuantityPerProduct = (float) $coffeeGrams;
-                            }
-                            $totalRequiredQuantity = $requiredQuantityPerProduct * $item['quantity'];
-
-                            $currentStock = ItemLokasi::getCurrentStock($pesanan->lokasi_id, $materialId);
-                            $quantityAfter = $currentStock - $totalRequiredQuantity;
-
-                            // Record stock movement (keluar)
-                            ItemLokasi::create([
-                                'lokasi_id' => $pesanan->lokasi_id,
-                                'material_id' => $materialId,
-                                'tipe' => 'keluar',
-                                'quantity' => -$totalRequiredQuantity,
-                                'quantity_before' => $currentStock,
-                                'quantity_after' => $quantityAfter,
-                                'reference_type' => Pesanan::class,
-                                'reference_id' => $pesanan->id,
-                                'keterangan' => "Penjualan produk {$produk->nama} (Pesanan #{$pesanan->id} - Update)",
-                                'user_id' => $userId,
-                                'tanggal' => now(),
-                            ]);
-                        }
-                    }
+                    $this->deductStockForOrderItem($pesanan, $produk, $item, $userId, ' - Update');
                 }
 
-                // Update total_jumlah and subtotal
                 $pesanan->total_jumlah = $totalJumlah;
                 if ($request->has('subtotal')) {
                     $pesanan->subtotal = $request->subtotal;

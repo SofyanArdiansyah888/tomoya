@@ -39,6 +39,7 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
   const [showAddProduct, setShowAddProduct] = useState(false)
   const [searchProduct, setSearchProduct] = useState('')
   const [amountPaid, setAmountPaid] = useState<number | ''>('')
+  const [initialItemsSnapshot, setInitialItemsSnapshot] = useState<string>('')
 
   const updateOrder = useUpdateOrder()
 
@@ -61,7 +62,34 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
       })
     },
     enabled: showAddProduct && isOpen,
-  })
+  }) 
+
+  const buildItemsPayload = (cartItems: CartItemType[]) =>
+    cartItems.map(item => ({
+      produk_id: Number(item.produk_id),
+      quantity: Number(item.quantity),
+      harga_satuan: Number(item.produk?.harga || 0),
+      coffee_strength: item.coffee_strength,
+      coffee_grams: typeof item.coffee_grams === 'number' ? item.coffee_grams : undefined,
+      target_material_id: resolveCoffeeMaterialId(item.produk),
+    }))
+
+  const snapshotItems = (cartItems: CartItemType[]) =>
+    JSON.stringify(
+      buildItemsPayload(cartItems)
+        .map(item => ({
+          produk_id: item.produk_id,
+          quantity: item.quantity,
+          harga_satuan: item.harga_satuan,
+          coffee_strength: item.coffee_strength ?? null,
+          coffee_grams: item.coffee_grams ?? null,
+        }))
+        .sort((a, b) =>
+          `${a.produk_id}-${a.quantity}-${a.harga_satuan}`.localeCompare(
+            `${b.produk_id}-${b.quantity}-${b.harga_satuan}`
+          )
+        )
+    )
 
   // Initialize form from order
   useEffect(() => {
@@ -83,6 +111,7 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
       }))
       
       setCart(cartItems)
+      setInitialItemsSnapshot(snapshotItems(cartItems))
       setPaymentMethod(order.metode_pembayaran || 'cash')
       setPaymentStatus(order.status || 'belum_bayar')
       setNotes(order.catatan || '')
@@ -186,21 +215,17 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
       return
     }
 
-    // Build JSON payload (follow create flow)
-    const itemsPayload = cart.map(item => ({
-      produk_id: Number(item.produk_id),
-      quantity: Number(item.quantity),
-      harga_satuan: Number(item.produk?.harga || 0),
-      coffee_strength: item.coffee_strength,
-      coffee_grams: typeof item.coffee_grams === 'number' ? item.coffee_grams : undefined,
-      target_material_id: resolveCoffeeMaterialId(item.produk),
-    }))
+    const itemsPayload = buildItemsPayload(cart)
+    const itemsChanged = snapshotItems(cart) !== initialItemsSnapshot
 
     const orderData: any = {
       status: paymentStatus,
       metode_pembayaran: paymentMethod,
       subtotal: Number(subtotal),
-      items: itemsPayload,
+    }
+
+    if (itemsChanged) {
+      orderData.items = itemsPayload
     }
     if (notes) orderData.catatan = notes
     if (clientName) orderData.nama_client = clientName
