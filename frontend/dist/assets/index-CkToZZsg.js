@@ -713,7 +713,7 @@ Error generating stack: `+i.message+`
           justify-content: space-between;
           align-items: stretch;
           text-align: left;
-          padding: 0.6mm 0.9mm;
+          padding: 1mm 0.4mm 0.6mm 1.6mm;
           gap: 0.3mm;
         }
         .label-meta {
