@@ -1,4 +1,4 @@
-import { CartItemType, escapeHtml } from './printShared'
+import { CartItemType, escapeHtml, printHtmlDocument } from './printShared'
 
 /**
  * Format order number: DD-MM-YY-HHMM
@@ -66,11 +66,11 @@ const buildLabelHtml = (
 export const printLabel = (
   cart: CartItemType[],
   clientName?: string,
-  noPesanan?: string,   
+  noPesanan?: string,
   orderDate?: string | Date,
-) => {
+): Promise<void> => {
   if (cart.length === 0) {
-    return
+    return Promise.resolve()
   }
 
   const existingContainer = document.getElementById('label-print-temp')
@@ -160,7 +160,7 @@ export const printLabel = (
           gap: 0.3mm;
         }
         .label-meta {
-          font-size: 1.5mm;
+          font-size: 2.4mm;
           font-weight: 700;
           line-height: 1.1;
           letter-spacing: 0.02em;
@@ -196,7 +196,7 @@ export const printLabel = (
           white-space: nowrap;
         }
         .label-notes {
-          font-size: 1.8mm;
+          font-size: 2.3mm;
           font-weight: 600;
           font-style: italic;
           line-height: 1.15;
@@ -228,81 +228,8 @@ export const printLabel = (
     </html>
   `
 
-  const printWindow = window.open('', '_blank', 'width=800,height=600')
-  let hasPrinted = false
-
-  const executePrint = (windowToPrint: Window) => {
-    if (hasPrinted) return
-    hasPrinted = true
-    windowToPrint.focus()
-    windowToPrint.print()
-  }
-
-  if (!printWindow) {
-    const iframe = document.createElement('iframe')
-    iframe.id = 'label-print-iframe'
-    iframe.style.position = 'fixed'
-    iframe.style.right = '0'
-    iframe.style.bottom = '0'
-    iframe.style.width = '0'
-    iframe.style.height = '0'
-    iframe.style.border = 'none'
-    document.body.appendChild(iframe)
-
-    const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document
-    if (iframeDoc) {
-      iframeDoc.open()
-      iframeDoc.write(labelPrintContent)
-      iframeDoc.close()
-
-      iframe.onload = () => {
-        setTimeout(() => {
-          if (iframe.contentWindow && !hasPrinted) {
-            executePrint(iframe.contentWindow)
-            setTimeout(() => {
-              iframe.remove()
-            }, 1000)
-          }
-        }, 500)
-      }
-
-      setTimeout(() => {
-        if (iframe.contentWindow && !hasPrinted) {
-          executePrint(iframe.contentWindow)
-          setTimeout(() => {
-            iframe.remove()
-          }, 1000)
-        }
-      }, 1000)
-    }
-    return
-  }
-
-  printWindow.document.open()
-  printWindow.document.write(labelPrintContent)
-  printWindow.document.close()
-
-  printWindow.onload = () => {
-    setTimeout(() => {
-      if (!hasPrinted) {
-        executePrint(printWindow)
-        setTimeout(() => {
-          if (!printWindow.closed) {
-            printWindow.close()
-          }
-        }, 1000)
-      }
-    }, 500)
-  }
-
-  setTimeout(() => {
-    if (printWindow && !printWindow.closed && !hasPrinted) {
-      executePrint(printWindow)
-      setTimeout(() => {
-        if (!printWindow.closed) {
-          printWindow.close()
-        }
-      }, 1000)
-    }
-  }, 1000)
+  return printHtmlDocument(labelPrintContent, {
+    iframeId: 'label-print-iframe',
+    windowSize: 'width=800,height=600',
+  })
 }

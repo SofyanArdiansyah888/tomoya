@@ -1,7 +1,6 @@
 import { formatPrice } from '../lib/formatPrice'
 import tomoyaLogo from '../assets/tomoya.svg'
 import { CartItemType, getPaymentMethodLabel, printSingleReceipt, escapeHtml } from './printShared'
-import { printChecker } from './printChecker'
 
 /**
  * Format order number: DD-MM-YY-HHMM
@@ -296,9 +295,9 @@ export const printReceipt = (
   clientName?: string,
   uangDibayar?: number,
   kembalian?: number
-) => {
+): Promise<void> => {
   if (cart.length === 0) {
-    return
+    return Promise.resolve()
   }
 
   // Remove any existing print container and style
@@ -336,11 +335,5 @@ export const printReceipt = (
     kembalian
   )
 
-  // Print normal receipt first, then checker receipt
-  printSingleReceipt(normalReceiptContent, false).then(() => {
-    // Wait a bit before printing checker receipt to ensure first print completes
-    setTimeout(() => { 
-      printChecker(cart, formattedDate, orderDate, clientName)
-    }, 1000)
-  })
+  return printSingleReceipt(normalReceiptContent, false)
 }

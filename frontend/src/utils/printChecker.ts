@@ -161,13 +161,13 @@ export const printChecker = (
   formattedDate: string,
   orderDate: string | Date | undefined,
   clientName?: string
-) => {
+): Promise<void> => {
   if (cart.length === 0) {
-    return
+    return Promise.resolve()
   }
 
   const date = orderDate ? new Date(orderDate) : new Date()
- 
+
   const checkerReceiptContent = buildCheckerReceiptContent(
     cart,
     formattedDate,
@@ -175,7 +175,6 @@ export const printChecker = (
     clientName
   )
 
-  // Print checker receipt
-  printSingleReceipt(checkerReceiptContent, true)
+  return printSingleReceipt(checkerReceiptContent, true)
 }
 

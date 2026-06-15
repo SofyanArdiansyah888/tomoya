@@ -238,9 +238,7 @@ export const Kasir = () => {
     toast.success('Produk dihapus dari keranjang!')
   }
 
-  const PRINT_DELAY_MS = 2000
-
-  const handlePrintOnCheckout = (
+  const handlePrintOnCheckout = async (
     cart: typeof localCart,
     status: 'bayar' | 'belum_bayar',
     checkoutTotal: number,
@@ -248,7 +246,7 @@ export const Kasir = () => {
     checkoutAmountPaid: number | '',
     checkoutKembalian: number
   ): Promise<void> => {
-    if (cart.length === 0) return Promise.resolve()
+    if (cart.length === 0) return
 
     const orderDate = new Date()
     const formattedDate = orderDate.toLocaleString('id-ID', {
@@ -259,34 +257,25 @@ export const Kasir = () => {
       minute: '2-digit'
     })
 
-    return new Promise((resolve) => {
-      const finishDelay = status === 'bayar' ? 3000 : 1000
-      const finish = () => setTimeout(resolve, finishDelay)
+    if (status === 'bayar') {
+      await printReceipt(
+        cart,
+        checkoutTotal,
+        paymentMethod,
+        undefined,
+        orderDate,
+        undefined,
+        checkoutClientName,
+        typeof checkoutAmountPaid === 'number' ? checkoutAmountPaid : undefined,
+        checkoutKembalian > 0 ? checkoutKembalian : undefined
+      )
+      await printChecker(cart, formattedDate, orderDate, checkoutClientName)
+      await printLabel(cart, checkoutClientName, undefined, orderDate)
+      return
+    }
 
-      if (status === 'bayar') {
-        printReceipt(
-          cart,
-          checkoutTotal,
-          paymentMethod,
-          undefined,
-          orderDate,
-          undefined,
-          checkoutClientName,
-          typeof checkoutAmountPaid === 'number' ? checkoutAmountPaid : undefined,
-          checkoutKembalian > 0 ? checkoutKembalian : undefined
-        )
-        setTimeout(() => {
-          printLabel(cart, checkoutClientName, undefined, orderDate)
-          finish()
-        }, PRINT_DELAY_MS * 2)
-      } else {
-        printChecker(cart, formattedDate, orderDate, checkoutClientName)
-        setTimeout(() => {
-          printLabel(cart, checkoutClientName, undefined, orderDate)
-          finish()
-        }, PRINT_DELAY_MS)
-      }
-    })
+    await printChecker(cart, formattedDate, orderDate, checkoutClientName)
+    await printLabel(cart, checkoutClientName, undefined, orderDate)
   }
 
   // Helper function to get product stock from shop location
