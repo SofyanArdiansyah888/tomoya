@@ -16,7 +16,7 @@ class ArusKasController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = ArusKas::with(['lokasi', 'user']); 
+        $query = ArusKas::with(['lokasi', 'user'])->forLaporan();
 
         if ($request->has('status')) {
             $query->where('status', $request->boolean('status'));
@@ -95,14 +95,14 @@ class ArusKasController extends Controller
                 'to' => $arusKas->lastItem(),
             ]
         ]);
-    }
+    } 
 
     /**
      * Get cash flow statistics
      */
     public function stats(Request $request): JsonResponse
     {
-        $query = ArusKas::query();
+        $query = ArusKas::query()->forLaporan();
         if ($request->has('status')) {
             $query->where('status', $request->boolean('status'));
         }

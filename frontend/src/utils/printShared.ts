@@ -2,11 +2,14 @@ export interface CartItemType {
   produk_id: number
   quantity: number
   produk: any
+  coffee_strength?: 'strong' | 'medium' | 'soft' | 'other'
+  coffee_grams?: number
+  catatan?: string 
 }
 
 export const getPaymentMethodLabel = (method: string) => {
   const labels: Record<string, string> = {
-    cash: 'Tunai',
+    cash: 'Tunai', 
     card: 'Kartu',
     qris: 'QRIS',
     other: 'Lainnya'

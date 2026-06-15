@@ -152,6 +152,19 @@ class ShiftKasir extends Model
     }
 
     /**
+     * Entri agregat closing shift di arus_kas.
+     */
+    public function closingArusKasQuery()
+    {
+        return $this->arusKas()
+            ->where('jenis', 'pemasukan')
+            ->where('kategori', 'pemasukan_kasir')
+            ->where('sub_kategori', 'penjualan_kasir')
+            ->where('referensi_type', 'ShiftKasir')
+            ->where('referensi_id', $this->id);
+    }
+
+    /**
      * Arus kas penjualan kasir (bukan input closing shift).
      */
     public function penjualanArusKasQuery()
@@ -225,7 +238,7 @@ class ShiftKasir extends Model
             return [
                 'total_penjualan_cash' => $paidPesanan
                     ->where('metode_pembayaran', 'cash')
-                    ->sum(fn ($pesanan) => $pesanan->uang_dibayar ?? $pesanan->total_jumlah),
+                    ->sum(fn ($pesanan) => (float) $pesanan->total_jumlah),
                 'total_penjualan_card' => $paidPesanan
                     ->where('metode_pembayaran', 'card')
                     ->sum('total_jumlah'),
@@ -240,11 +253,11 @@ class ShiftKasir extends Model
         }
 
         $arusKasPenjualan = $this->penjualanArusKasQuery()->get();
-
+ 
         return [
             'total_penjualan_cash' => $arusKasPenjualan
                 ->where('metode_pembayaran', 'cash')
-                ->sum(fn ($arusKas) => $arusKas->uang_dibayar ?? $arusKas->jumlah),
+                ->sum(fn ($arusKas) => (float) $arusKas->jumlah),
             'total_penjualan_card' => $arusKasPenjualan
                 ->where('metode_pembayaran', 'card')
                 ->sum('jumlah'),
@@ -259,10 +272,48 @@ class ShiftKasir extends Model
     }
 
     /**
+     * Hitung arus cash fisik di laci tanpa double-count dari mirror arus_kas.
+     */
+    public function calculateCashFlow(): array
+    {
+        $paidPesanan = $this->paidPesananQuery()->get();
+
+        $penjualanCash = (float) $paidPesanan
+            ->where('metode_pembayaran', 'cash')
+            ->sum(fn ($pesanan) => (float) $pesanan->total_jumlah);
+
+        $pemasukanCash = (float) $this->pemasukan()
+            ->where('metode_pembayaran', 'cash')
+            ->sum('jumlah');
+
+        $pengeluaranCash = (float) $this->pengeluaran()
+            ->where('metode_pembayaran', 'cash')
+            ->sum('jumlah');
+
+        $pembelianCash = (float) $this->pembelian()
+            ->where('metode_pembayaran', 'cash')
+            ->sum('total_harga');
+
+        $totalCashMasuk = $penjualanCash + $pemasukanCash;
+        $totalCashKeluar = $pengeluaranCash + $pembelianCash;
+        $expectedSaldoAkhir = (float) $this->saldo_awal + $totalCashMasuk - $totalCashKeluar;
+
+        return [
+            'penjualan_cash' => $penjualanCash,
+            'pemasukan_cash' => $pemasukanCash,
+            'total_cash_masuk' => $totalCashMasuk,
+            'pengeluaran_cash' => $pengeluaranCash,
+            'pembelian_cash' => $pembelianCash,
+            'total_cash_keluar' => $totalCashKeluar,
+            'expected_saldo_akhir' => $expectedSaldoAkhir,
+        ];
+    }
+
+    /**
      * Calculate totals from all transactions in this shift
      */
     public function calculateTotals(): array
-    {
+    { 
         $penjualanTotals = $this->calculatePenjualanTotals();
         
         // Calculate other totals
@@ -270,11 +321,13 @@ class ShiftKasir extends Model
         $totalPemasukan = $this->pemasukan()->sum('jumlah');
         $totalPengeluaran = $this->pengeluaran()->sum('jumlah');
         
-        // Calculate arus kas (pemasukan - pengeluaran)
+        // Arus kas laporan (tanpa baris per-pesanan pemasukan_kasir)
         $arusKasPemasukan = $this->arusKas()
+            ->forLaporan()
             ->where('jenis', 'pemasukan')
             ->sum('jumlah');
         $arusKasPengeluaran = $this->arusKas()
+            ->forLaporan()
             ->where('jenis', 'pengeluaran')
             ->sum('jumlah');
         $totalArusKas = $arusKasPemasukan - $arusKasPengeluaran;

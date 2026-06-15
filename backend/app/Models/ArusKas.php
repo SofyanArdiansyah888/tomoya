@@ -86,6 +86,28 @@ class ArusKas extends Model
     public function scopeByLokasi($query, $lokasiId)
     {
         return $query->where('lokasi_id', $lokasiId);
+    } 
+
+    /**
+     * Entri yang masuk laporan:
+     * - pemasukan kasir non-cash per pesanan (langsung)
+     * - pemasukan kasir cash agregat saat tutup shift
+     */
+    public function scopeForLaporan($query)
+    { 
+        return $query->where(function ($q) {
+            $q->where('kategori', '!=', 'pemasukan_kasir')
+                ->orWhere(function ($q2) {
+                    $q2->where('kategori', 'pemasukan_kasir')
+                        ->where('sub_kategori', 'penjualan_kasir')
+                        ->where('referensi_type', 'ShiftKasir');
+                })
+                ->orWhere(function ($q3) {
+                    $q3->where('kategori', 'pemasukan_kasir')
+                        ->whereIn('referensi_type', ['Pesanan', Pesanan::class])
+                        ->where('metode_pembayaran', '!=', 'cash');
+                });
+        });
     }
 
     // Accessors

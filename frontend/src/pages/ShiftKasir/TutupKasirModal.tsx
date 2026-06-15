@@ -76,51 +76,35 @@ export const TutupKasirModal = ({
       setIsSubmitting(false)
     }
   }
-
-  // Calculate expected saldo akhir - sesuai dengan logika backend
-  // Total cash masuk: penjualan cash + pemasukan cash + arus kas pemasukan cash
-  const totalPemasukanCash = (displayShift.pemasukan || []).reduce((sum, pemasukan) => {
+ 
+  // Rincian cash dari backend (tanpa double-count arus_kas mirror)
+  const cashFlow = displayShift.cash_flow
+  const penjualanCash = cashFlow?.penjualan_cash ?? displayShift.total_penjualan_cash
+  const totalPemasukanCash = cashFlow?.pemasukan_cash ?? (displayShift.pemasukan || []).reduce((sum, pemasukan) => {
     if (pemasukan.metode_pembayaran === 'cash') {
-      return sum + (pemasukan.uang_dibayar ?? pemasukan.jumlah)
+      return sum + pemasukan.jumlah
     }
     return sum
   }, 0)
+  const totalCashMasuk = cashFlow?.total_cash_masuk ?? (penjualanCash + totalPemasukanCash)
 
-  const totalArusKasPemasukanCash = (displayShift.arus_kas || []).reduce((sum, arusKas) => {
-    if (arusKas.jenis === 'pemasukan' && arusKas.metode_pembayaran === 'cash') {
-      return sum + (arusKas.uang_dibayar ?? arusKas.jumlah)
-    }
-    return sum
-  }, 0)
-
-  const totalCashMasuk = displayShift.total_penjualan_cash + totalPemasukanCash + totalArusKasPemasukanCash
-
-  // Total cash keluar: pengeluaran cash + pembelian cash + arus kas pengeluaran cash
-  const totalPengeluaranCash = (displayShift.pengeluaran || []).reduce((sum, pengeluaran) => {
+  const totalPengeluaranCash = cashFlow?.pengeluaran_cash ?? (displayShift.pengeluaran || []).reduce((sum, pengeluaran) => {
     if (pengeluaran.metode_pembayaran === 'cash') {
       return sum + pengeluaran.jumlah
     }
     return sum
   }, 0)
 
-  const totalPembelianCash = (displayShift.pembelian || []).reduce((sum, pembelian) => {
+  const totalPembelianCash = cashFlow?.pembelian_cash ?? (displayShift.pembelian || []).reduce((sum, pembelian) => {
     if (pembelian.metode_pembayaran === 'cash') {
       return sum + pembelian.total_harga
     }
     return sum
   }, 0)
 
-  const totalArusKasPengeluaranCash = (displayShift.arus_kas || []).reduce((sum, arusKas) => {
-    if (arusKas.jenis === 'pengeluaran' && arusKas.metode_pembayaran === 'cash') {
-      return sum + arusKas.jumlah
-    }
-    return sum
-  }, 0)
+  const totalCashKeluar = cashFlow?.total_cash_keluar ?? (totalPengeluaranCash + totalPembelianCash)
 
-  const totalCashKeluar = totalPengeluaranCash + totalPembelianCash + totalArusKasPengeluaranCash
-
-  // Expected saldo akhir = saldo awal + cash masuk - cash keluar
-  const expectedSaldoAkhir = displayShift.saldo_awal + totalCashMasuk - totalCashKeluar
+  const expectedSaldoAkhir = cashFlow?.expected_saldo_akhir ?? (displayShift.saldo_awal + totalCashMasuk - totalCashKeluar)
   const selisih = isViewMode
     ? (displayShift.selisih ?? 0)
     : (saldoAkhir > 0 ? saldoAkhir - expectedSaldoAkhir : 0)
@@ -197,18 +181,12 @@ export const TutupKasirModal = ({
                     <div className="space-y-1 text-xs">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Penjualan Cash:</span>
-                        <span className="font-medium">{formatPrice(displayShift.total_penjualan_cash)}</span>
+                        <span className="font-medium">{formatPrice(penjualanCash)}</span>
                       </div>
                       {totalPemasukanCash > 0 && (
                         <div className="flex justify-between">
                           <span className="text-gray-600">Pemasukan Cash:</span>
                           <span className="font-medium">{formatPrice(totalPemasukanCash)}</span>
-                        </div>
-                      )}
-                      {totalArusKasPemasukanCash > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Arus Kas Pemasukan Cash:</span>
-                          <span className="font-medium">{formatPrice(totalArusKasPemasukanCash)}</span>
                         </div>
                       )}
                       <div className="flex justify-between pt-1 border-t border-green-200">
@@ -230,12 +208,6 @@ export const TutupKasirModal = ({
                         <div className="flex justify-between">
                           <span className="text-gray-600">Pembelian Cash:</span>
                           <span className="font-medium">{formatPrice(totalPembelianCash)}</span>
-                        </div>
-                      )}
-                      {totalArusKasPengeluaranCash > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Arus Kas Pengeluaran Cash:</span>
-                          <span className="font-medium">{formatPrice(totalArusKasPengeluaranCash)}</span>
                         </div>
                       )}
                       <div className="flex justify-between pt-1 border-t border-red-200">

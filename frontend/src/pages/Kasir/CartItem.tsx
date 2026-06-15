@@ -15,11 +15,13 @@ interface CartItemProps {
     produk: any
     coffee_strength?: 'strong' | 'medium' | 'soft' | 'other'
     coffee_grams?: number
+    catatan?: string
   }
   availableStock: number
   onQuantityChange: (lineId: string, newQuantity: number) => void
   onRemove?: (lineId: string) => void
   onCoffeeOptionChange: (lineId: string, strength: 'strong' | 'medium' | 'soft' | 'other', grams: number) => void
+  onCatatanChange: (lineId: string, catatan: string) => void
 }
 
 export const CartItem = ({
@@ -27,7 +29,8 @@ export const CartItem = ({
   availableStock,
   onQuantityChange,
   onRemove,
-  onCoffeeOptionChange
+  onCoffeeOptionChange,
+  onCatatanChange,
 }: CartItemProps) => {
   const strengthDefaults: Record<'strong'|'medium'|'soft'|'other', number> = {
     strong: 40,
@@ -176,6 +179,13 @@ export const CartItem = ({
             )}
           </div>
         </div>
+        <textarea
+          value={item.catatan || ''}
+          onChange={(e) => onCatatanChange(item.line_id, e.target.value)}
+          placeholder="Catatan item..."
+          rows={1}
+          className="mt-1.5 w-full px-2 py-1 text-xs border border-gray-200 rounded resize-none focus:outline-none focus:ring-1 focus:ring-amber-500"
+        />
       </div>
 
     </div>

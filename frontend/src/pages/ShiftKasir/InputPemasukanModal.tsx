@@ -1,6 +1,6 @@
 import { Label } from '@/components/ui'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '../../components/ui/button'
 import { Modal } from '../../components/ui/modal'
 
@@ -8,11 +8,23 @@ interface InputPemasukanModalProps {
   isOpen: boolean
   onClose: () => void
   onSubmit: (data: { jumlah: number }) => Promise<void>
+  defaultJumlah?: number
 }
-
-export const InputPemasukanModal = ({ isOpen, onClose, onSubmit }: InputPemasukanModalProps) => {
+ 
+export const InputPemasukanModal = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  defaultJumlah = 0,
+}: InputPemasukanModalProps) => {
   const [jumlah, setJumlah] = useState<number>(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
+
+  useEffect(() => {
+    if (isOpen) {
+      setJumlah(defaultJumlah > 0 ? defaultJumlah : 0)
+    }
+  }, [isOpen, defaultJumlah])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -28,8 +40,11 @@ export const InputPemasukanModal = ({ isOpen, onClose, onSubmit }: InputPemasuka
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Input Pemasukan Shift" size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} title="Sesuaikan Pemasukan Shift" size="sm">
       <form onSubmit={handleSubmit} className="space-y-4">
+        <p className="text-sm text-gray-600">
+          Sesuaikan jumlah penjualan shift yang tercatat di arus kas jika ada selisih rekonsiliasi.
+        </p>
         <div>
           <Label htmlFor="jumlah">Jumlah *</Label>
           <CurrencyInput
@@ -48,4 +63,3 @@ export const InputPemasukanModal = ({ isOpen, onClose, onSubmit }: InputPemasuka
     </Modal>
   )
 }
-

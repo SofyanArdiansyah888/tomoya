@@ -146,7 +146,7 @@ export const OrderDetailModal = ({ isOpen, onClose, order }: OrderDetailModalPro
 
         {order.catatan && (
           <div>
-            <label className="text-sm font-medium text-gray-500">Catatan</label>
+            <label className="text-sm font-medium text-gray-500">Catatan Pesanan (lama)</label>
             <p className="text-base mt-1 p-3 bg-gray-50 rounded-md">
               {order.catatan}
             </p>
@@ -173,7 +173,12 @@ export const OrderDetailModal = ({ isOpen, onClose, order }: OrderDetailModalPro
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-2">
                           <Package className="h-4 w-4 text-gray-400" />
-                          <span className="font-medium">{item.produk?.nama || 'Produk tidak ditemukan'}</span>
+                          <div>
+                            <span className="font-medium">{item.produk?.nama || 'Produk tidak ditemukan'}</span>
+                            {item.catatan && (
+                              <p className="text-xs text-gray-500 mt-0.5">Catatan: {item.catatan}</p>
+                            )}
+                          </div>
                         </div>
                       </td>
                       <td className="px-4 py-3 text-center">

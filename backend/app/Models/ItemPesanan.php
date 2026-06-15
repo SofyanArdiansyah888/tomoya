@@ -13,13 +13,15 @@ class ItemPesanan extends Model
         'pesanan_id',
         'produk_id',
         'quantity',
-        'harga',
+        'harga',   
         'hpp',
+        'coffee_strength',
+        'catatan',
     ];
 
     protected $casts = [
         'quantity' => 'integer',
-        'harga' => 'decimal:2',
+        'harga' => 'decimal:2', 
         'hpp' => 'decimal:2',
     ];
 

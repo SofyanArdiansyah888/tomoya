@@ -36,7 +36,7 @@ class PesananResource extends JsonResource
             'updated_at' => $this->updated_at,
             'items' => $this->whenLoaded('itemPesanan', function () {
                 return $this->itemPesanan->map(function ($item) {
-                    return [
+                    return [ 
                         'id' => $item->id,
                         'pesanan_id' => $item->pesanan_id,
                         'produk_id' => $item->produk_id,
@@ -44,10 +44,12 @@ class PesananResource extends JsonResource
                         'harga_satuan' => $item->harga,
                         'harga' => $item->harga, // Keep for backward compatibility
                         'subtotal' => $item->quantity * $item->harga,
+                        'coffee_strength' => $item->coffee_strength,
+                        'catatan' => $item->catatan,
                         'created_at' => $item->created_at,
                         'updated_at' => $item->updated_at,
                         'produk' => $item->produk ? [
-                            'id' => $item->produk->id,
+                            'id' => $item->produk->id, 
                             'nama' => $item->produk->nama,
                             'harga' => $item->produk->harga,
                             'kategori' => $item->produk->kategori ? [

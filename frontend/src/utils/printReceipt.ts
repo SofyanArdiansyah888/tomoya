@@ -234,6 +234,7 @@ const buildReceiptContent = (
                   <div class="item-detail" >
                     ${item.quantity} × ${formatPrice(item.produk?.harga || 0)}
                   </div>
+                  ${item.catatan?.trim() ? `<div class="item-detail" style="font-style: italic;">Catatan: ${escapeHtml(item.catatan.trim())}</div>` : ''}
                 </div>
                 <div class="item-price" >
                   ${formatPrice((item.produk?.harga || 0) * item.quantity)}
@@ -338,8 +339,8 @@ export const printReceipt = (
   // Print normal receipt first, then checker receipt
   printSingleReceipt(normalReceiptContent, false).then(() => {
     // Wait a bit before printing checker receipt to ensure first print completes
-    setTimeout(() => {
-      printChecker(cart, notes, formattedDate, orderDate, clientName)
+    setTimeout(() => { 
+      printChecker(cart, formattedDate, orderDate, clientName)
     }, 1000)
   })
 }

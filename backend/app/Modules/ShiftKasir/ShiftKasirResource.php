@@ -15,6 +15,7 @@ class ShiftKasirResource extends JsonResource
     public function toArray(Request $request): array
     {
         $totals = $this->resource->calculateTotals();
+        $cashFlow = $this->resource->calculateCashFlow();
 
         return [
             'id' => $this->id,
@@ -32,6 +33,15 @@ class ShiftKasirResource extends JsonResource
             'total_pemasukan' => (float) $totals['total_pemasukan'],
             'total_pengeluaran' => (float) $totals['total_pengeluaran'],
             'total_arus_kas' => (float) $totals['total_arus_kas'],
+            'cash_flow' => [ 
+                'penjualan_cash' => $cashFlow['penjualan_cash'],
+                'pemasukan_cash' => $cashFlow['pemasukan_cash'],
+                'total_cash_masuk' => $cashFlow['total_cash_masuk'],
+                'pengeluaran_cash' => $cashFlow['pengeluaran_cash'],
+                'pembelian_cash' => $cashFlow['pembelian_cash'],
+                'total_cash_keluar' => $cashFlow['total_cash_keluar'],
+                'expected_saldo_akhir' => $cashFlow['expected_saldo_akhir'],
+            ],
             'selisih' => $this->selisih ? (float) $this->selisih : null,
             'tanggal_buka' => $this->tanggal_buka->format('Y-m-d H:i:s'),
             'tanggal_tutup' => $this->tanggal_tutup ? $this->tanggal_tutup->format('Y-m-d H:i:s') : null,
@@ -109,12 +119,8 @@ class ShiftKasirResource extends JsonResource
                         'tanggal' => $arusKas->tanggal->format('Y-m-d'),
                     ];
                 });
-            }),
-            'has_input_pemasukan' => (bool) $this->arusKas()
-                ->where('jenis', 'pemasukan')
-                ->where('kategori', 'pemasukan_kasir')
-                ->where('sub_kategori', 'penjualan_kasir')
-                ->exists(),
+            }), 
+            'has_input_pemasukan' => (bool) $this->closingArusKasQuery()->exists(),
         ];
     }
 }

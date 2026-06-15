@@ -27,13 +27,13 @@ interface CartItemType {
   produk: any
   coffee_strength?: 'strong' | 'medium' | 'soft' | 'other'
   coffee_grams?: number
+  catatan?: string
 }
 
 export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) => {
   const [cart, setCart] = useState<CartItemType[]>([])
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'qris' | 'other'>('cash')
   const [paymentStatus, setPaymentStatus] = useState<'bayar' | 'belum_bayar'>('belum_bayar')
-  const [notes, setNotes] = useState('')
   const [clientName, setClientName] = useState('')
   const [qrisImage, setQrisImage] = useState<File | null>(null)
   const [showAddProduct, setShowAddProduct] = useState(false)
@@ -72,6 +72,7 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
       coffee_strength: item.coffee_strength,
       coffee_grams: typeof item.coffee_grams === 'number' ? item.coffee_grams : undefined,
       target_material_id: resolveCoffeeMaterialId(item.produk),
+      catatan: item.catatan?.trim() || undefined,
     }))
 
   const snapshotItems = (cartItems: CartItemType[]) =>
@@ -83,6 +84,7 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
           harga_satuan: item.harga_satuan,
           coffee_strength: item.coffee_strength ?? null,
           coffee_grams: item.coffee_grams ?? null,
+          catatan: item.catatan?.trim() || null,
         }))
         .sort((a, b) =>
           `${a.produk_id}-${a.quantity}-${a.harga_satuan}`.localeCompare(
@@ -108,13 +110,13 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
         },
         coffee_strength: item.coffee_strength,
         coffee_grams: typeof item.coffee_grams === 'number' ? item.coffee_grams : undefined,
+        catatan: item.catatan || '',
       }))
       
       setCart(cartItems)
       setInitialItemsSnapshot(snapshotItems(cartItems))
       setPaymentMethod(order.metode_pembayaran || 'cash')
       setPaymentStatus(order.status || 'belum_bayar')
-      setNotes(order.catatan || '')
       setClientName(order.nama_client || '')
       setQrisImage(null) // Reset QRIS image
       setAmountPaid((order as any).uang_dibayar || '')
@@ -151,7 +153,8 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
         line_id: `line-${product.id}-${Date.now()}`,
         produk_id: product.id,
         quantity: 1,
-        produk: product
+        produk: product,
+        catatan: '',
       }])
     }
     setShowAddProduct(false)
@@ -166,6 +169,12 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
   const handleCoffeeOptionChange = (lineId: string, strength: 'strong' | 'medium' | 'soft' | 'other' | undefined, grams: number) => {
     setCart(cart.map(item => (
       item.line_id === lineId ? { ...item, coffee_strength: strength, coffee_grams: grams } : item
+    )))
+  }
+
+  const handleCatatanChange = (lineId: string, catatan: string) => {
+    setCart(cart.map(item => (
+      item.line_id === lineId ? { ...item, catatan } : item
     )))
   }
 
@@ -227,7 +236,6 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
     if (itemsChanged) {
       orderData.items = itemsPayload
     }
-    if (notes) orderData.catatan = notes
     if (clientName) orderData.nama_client = clientName
     if (paymentMethod === 'cash' && paymentStatus === 'bayar' && typeof amountPaid === 'number') {
       orderData.uang_dibayar = Number(amountPaid)
@@ -333,6 +341,7 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
                     onQuantityChange={handleQuantityChange}
                     onRemove={(lineId) => handleRemoveItem(lineId)}
                     onCoffeeOptionChange={(lineId, strength, grams) => handleCoffeeOptionChange(lineId, strength, grams)}
+                    onCatatanChange={handleCatatanChange}
                   />
                 </div>
               ))
@@ -428,20 +437,6 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
               )}
             </div>
           )}
-
-          {/* Notes */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Catatan (Opsional)
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Catatan untuk pesanan..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-              rows={3}
-            />
-          </div>
 
           {/* Total */}
           <div className="flex justify-between items-center pt-4 border-t pb-3 border-b">

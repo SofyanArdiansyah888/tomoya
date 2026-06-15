@@ -23,9 +23,8 @@ class ShiftKasirController extends Controller
         $user = $request->user();
         $userId = $user ? $user->id : 1; // Fallback untuk development
 
-        // Validasi: tidak boleh ada shift yang masih open untuk user dan lokasi yang sama
-        $existingShift = ShiftKasir::where('user_id', $userId)
-            ->where('lokasi_id', $request->lokasi_id)
+        // Validasi: tidak boleh ada shift open di lokasi yang sama
+        $existingShift = ShiftKasir::where('lokasi_id', $request->lokasi_id)
             ->where('status', 'open')
             ->first();
 
@@ -72,12 +71,44 @@ class ShiftKasirController extends Controller
             return response()->json([
                 'message' => 'Shift ini sudah ditutup sebelumnya.'
             ], 400);
-        }
+        } 
+
+        $user = $request->user();
+        $userId = $user ? $user->id : 1;
 
         DB::beginTransaction();
         try {
+            $shift->update([
+                'tanggal_tutup' => now(),
+                'status' => 'closed',
+            ]);
+
             // Calculate totals from all transactions
             $totals = $shift->calculateTotals();
+
+            // Agregat penjualan cash shift (non-cash sudah tercatat per pesanan)
+            if (
+                !$shift->closingArusKasQuery()->exists()
+                && (float) $totals['total_penjualan_cash'] > 0
+            ) {
+                ArusKas::create([ 
+                    'user_id' => $userId,
+                    'lokasi_id' => $shift->lokasi_id,
+                    'shift_id' => $shift->id,
+                    'jenis' => 'pemasukan',
+                    'kategori' => 'pemasukan_kasir',
+                    'sub_kategori' => 'penjualan_kasir',
+                    'jumlah' => $totals['total_penjualan_cash'],
+                    'deskripsi' => 'Closing Kasir ' . $shift->no_shift_kasir . ' (Cash)',
+                    'tanggal' => now()->toDateString(),
+                    'referensi_id' => $shift->id,
+                    'referensi_type' => 'ShiftKasir',
+                    'metode_pembayaran' => 'cash',
+                    'status' => true,
+                ]);
+            }
+
+            $totals = $shift->fresh()->calculateTotals();
 
             // Update shift with totals and saldo akhir
             $shift->update([
@@ -91,40 +122,12 @@ class ShiftKasirController extends Controller
                 'total_pemasukan' => $totals['total_pemasukan'],
                 'total_pengeluaran' => $totals['total_pengeluaran'],
                 'total_arus_kas' => $totals['total_arus_kas'],
-                'tanggal_tutup' => now(),
-                'status' => 'closed',
                 'catatan' => $request->catatan ?? $shift->catatan,
             ]);
 
-            // Calculate selisih: saldo_akhir - (saldo_awal + total cash masuk - total cash keluar)
-            // Total cash masuk: penjualan cash (menggunakan uang_dibayar jika ada) + pemasukan cash + arus kas pemasukan cash
-            // Untuk pemasukan dan arus kas, gunakan uang_dibayar jika ada, otherwise jumlah
-            $totalPemasukanCash = $shift->pemasukan()
-                ->where('metode_pembayaran', 'cash')
-                ->get()
-                ->sum(function ($pemasukan) {
-                    return $pemasukan->uang_dibayar ?? $pemasukan->jumlah;
-                });
-            
-            $totalArusKasPemasukanCash = $shift->arusKas()
-                ->where('jenis', 'pemasukan')
-                ->where('metode_pembayaran', 'cash')
-                ->get()
-                ->sum(function ($arusKas) {
-                    return $arusKas->uang_dibayar ?? $arusKas->jumlah;
-                });
-            
-            $totalCashMasuk = $totals['total_penjualan_cash'] + $totalPemasukanCash + $totalArusKasPemasukanCash;
-            
-            // Total cash keluar: pengeluaran cash + pembelian cash + arus kas pengeluaran cash
-            $totalCashKeluar = $shift->pengeluaran()->where('metode_pembayaran', 'cash')->sum('jumlah') +
-                $shift->pembelian()->where('metode_pembayaran', 'cash')->sum('total_harga') +
-                $shift->arusKas()->where('jenis', 'pengeluaran')->where('metode_pembayaran', 'cash')->sum('jumlah');
-
-            // Expected saldo akhir = saldo awal + cash masuk - cash keluar
-            $expectedSaldoAkhir = $shift->saldo_awal + $totalCashMasuk - $totalCashKeluar;
-            
-            // Selisih = actual saldo akhir - expected saldo akhir
+            // Calculate selisih dari arus cash fisik (tanpa double-count arus_kas mirror)
+            $cashFlow = $shift->calculateCashFlow();
+            $expectedSaldoAkhir = $cashFlow['expected_saldo_akhir'];
             $selisih = $request->saldo_akhir - $expectedSaldoAkhir;
 
             $shift->update(['selisih' => $selisih]);
@@ -143,9 +146,10 @@ class ShiftKasirController extends Controller
             ], 500);
         }
     }
-
+ 
     /**
-     * Get current active shift for user/lokasi
+     * Get current active shift for lokasi (bukan per user login).
+     * Shift kasir adalah per lokasi — user lain yang login tetap melihat shift aktif yang sama.
      */
     public function getCurrentShift(Request $request): JsonResponse
     {
@@ -153,15 +157,26 @@ class ShiftKasirController extends Controller
         $userId = $user ? $user->id : 1;
 
         $lokasiId = $request->get('lokasi_id');
-
-        $query = ShiftKasir::where('user_id', $userId)
-            ->where('status', 'open');
-
+ 
         if ($lokasiId) {
-            $query->where('lokasi_id', $lokasiId);
+            $shift = ShiftKasir::findActiveForLokasi((int) $lokasiId, $userId);
+        } else {
+            // Tanpa lokasi_id: cari shift open user dulu, lalu shift open terbaru di semua lokasi
+            $shift = ShiftKasir::where('user_id', $userId)
+                ->where('status', 'open')
+                ->orderByDesc('id')
+                ->first();
+
+            if (!$shift) {
+                $shift = ShiftKasir::where('status', 'open')
+                    ->orderByDesc('id')
+                    ->first();
+            }
         }
 
-        $shift = $query->with(['user', 'lokasi'])->first();
+        if ($shift) {
+            $shift->load(['user', 'lokasi']);
+        }
 
         if (!$shift) {
             return response()->json([
@@ -255,69 +270,49 @@ class ShiftKasirController extends Controller
     }
 
     /**
-     * Input pemasukan oleh PIC setelah shift kasir ditutup (sekali per shift)
+     * Sesuaikan jumlah pemasukan closing shift (rekonsiliasi PIC).
      */
     public function inputPemasukan(Request $request, string $id): JsonResponse
     {
-        $user = $request->user();
-        $userId = $user ? $user->id : 1; // Fallback untuk development
-
         $request->validate([
             'jumlah' => 'required|numeric|min:0.01',
         ]);
 
         $shift = ShiftKasir::findOrFail($id);
 
-        // if ($shift->status !== 'closed') {
-        //     return response()->json([
-        //         'message' => 'Shift belum ditutup. Input pemasukan hanya dapat dilakukan setelah closing.'
-        //     ], 400);
-        // }
-
-        $existing = ArusKas::where('referensi_type', 'ShiftKasir')
-            ->where('referensi_id', $shift->id)
-            ->where('jenis', 'pemasukan')
-            ->where('kategori', 'pemasukan_kasir')
-            ->where('sub_kategori', 'penjualan_kasir')
-            ->first();
-
-        if ($existing) {
+        if ($shift->status !== 'closed') {
             return response()->json([
-                'message' => 'Input pemasukan untuk shift ini sudah dilakukan'
-            ], 409);
+                'message' => 'Shift belum ditutup. Sesuaikan pemasukan hanya dapat dilakukan setelah closing.'
+            ], 400);
+        }
+
+        $closing = $shift->closingArusKasQuery()->first();
+
+        if (!$closing) {
+            return response()->json([
+                'message' => 'Entri closing belum ada. Tutup shift terlebih dahulu.'
+            ], 400);
         }
 
         DB::beginTransaction();
         try {
-            $nomorTutup = $shift->no_shift_kasir;
-            $deskripsi = 'Closing Kasir ' . $nomorTutup;
-
-            $arus = ArusKas::create([
-                'user_id' => $userId,
-                'lokasi_id' => $shift->lokasi_id,
-                'shift_id' => $shift->id,
-                'jenis' => 'pemasukan',
-                'kategori' => 'pemasukan_kasir',
-                'sub_kategori' => 'penjualan_kasir',
+            $closing->update([
                 'jumlah' => $request->jumlah,
-                'deskripsi' => $deskripsi,
-                'tanggal' => now()->toDateString(),
-                'referensi_id' => $shift->id,
-                'referensi_type' => 'ShiftKasir',
-                'metode_pembayaran' => 'cash',
-                'status' => true,
             ]);
+
+            $totals = $shift->fresh()->calculateTotals();
+            $shift->update(['total_arus_kas' => $totals['total_arus_kas']]);
 
             DB::commit();
 
             return response()->json([
-                'message' => 'Pemasukan shift berhasil dicatat',
-                'data' => $arus
-            ], 201);
+                'message' => 'Pemasukan shift berhasil disesuaikan',
+                'data' => $closing->fresh()
+            ], 200);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
-                'message' => 'Gagal mencatat pemasukan shift',
+                'message' => 'Gagal menyesuaikan pemasukan shift',
                 'error' => $e->getMessage()
             ], 500);
         }

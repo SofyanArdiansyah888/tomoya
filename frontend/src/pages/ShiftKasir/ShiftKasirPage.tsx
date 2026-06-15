@@ -21,6 +21,9 @@ import { InputPemasukanModal } from './InputPemasukanModal'
 import { TutupKasirModal } from './TutupKasirModal'
 // Using native JavaScript Date formatting
 
+// Default shop location ID is 2
+const DEFAULT_SHOP_LOCATION_ID = 2
+
 export const ShiftKasirPage = () => {
   const { toast } = useToast()
   const [showBukaModal, setShowBukaModal] = useState(false)
@@ -47,8 +50,8 @@ export const ShiftKasirPage = () => {
 
   // Fetch current shift
   const { data: currentShift,  refetch: refetchCurrent } = useQuery({
-    queryKey: ['shift-kasir', 'current'],
-    queryFn: () => shiftService.getCurrentShift(),
+    queryKey: ['shift-kasir', 'current', DEFAULT_SHOP_LOCATION_ID],
+    queryFn: () => shiftService.getCurrentShift(DEFAULT_SHOP_LOCATION_ID),
     refetchInterval: 30000, // Refetch every 30 seconds
   })
 
@@ -110,7 +113,7 @@ export const ShiftKasirPage = () => {
       await shiftService.inputPemasukan(selectedShift.id, payload)
       setShowInputPemasukanModal(false)
       setSelectedShift(null)
-      toast({ title: 'Berhasil', description: 'Pemasukan shift berhasil dicatat' })
+      toast({ title: 'Berhasil', description: 'Pemasukan shift berhasil disesuaikan' })
       refetchShifts()
     } catch (error: any) {
       toast({ title: 'Error', description: error.response?.data?.message || 'Gagal mencatat pemasukan shift', variant: 'destructive' })
@@ -282,15 +285,15 @@ export const ShiftKasirPage = () => {
                             title="Lihat Detail"
                           >
                             <Eye className="h-4 w-4" />
-                          </Button>
-                          {shift.status === 'closed' && !shift.has_input_pemasukan && (
+                          </Button> 
+                          {shift.status === 'closed' && (
                             <Button
                               variant="ghost"
                               size="sm"
                               className="h-8 w-8 p-0"
                               onClick={() => handleInputPemasukan(shift)}
-                              aria-label="Input Pemasukan"
-                              title="Input Pemasukan"
+                              aria-label="Sesuaikan Pemasukan"
+                              title="Sesuaikan Pemasukan"
                             >
                               <Plus className="h-4 w-4" />
                             </Button>
@@ -342,6 +345,7 @@ export const ShiftKasirPage = () => {
         isOpen={showInputPemasukanModal}
         onClose={() => { setShowInputPemasukanModal(false); setSelectedShift(null) }}
         onSubmit={submitInputPemasukan}
+        defaultJumlah={selectedShift?.total_penjualan}
       />
     </div>
   )

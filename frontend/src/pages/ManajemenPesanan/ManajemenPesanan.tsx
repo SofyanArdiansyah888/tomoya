@@ -73,7 +73,10 @@ export const ManajemenPesanan = () => {
       const cart = orderData.items.map((item: any) => ({
         produk_id: item.produk_id,
         quantity: item.quantity,
-        produk: item.produk || { nama: 'Produk tidak ditemukan', harga: item.harga_satuan || item.harga || 0 }
+        produk: item.produk || { nama: 'Produk tidak ditemukan', harga: item.harga_satuan || item.harga || 0 },
+        coffee_strength: item.coffee_strength,
+        coffee_grams: item.coffee_grams,
+        catatan: item.catatan,
       }))
 
       if (cart.length === 0) {
@@ -123,7 +126,10 @@ export const ManajemenPesanan = () => {
       const cart = orderData.items.map((item: any) => ({
         produk_id: item.produk_id,
         quantity: item.quantity,
-        produk: item.produk || { nama: 'Produk tidak ditemukan', harga: item.harga_satuan || item.harga || 0 }
+        produk: item.produk || { nama: 'Produk tidak ditemukan', harga: item.harga_satuan || item.harga || 0 },
+        coffee_strength: item.coffee_strength,
+        coffee_grams: item.coffee_grams,
+        catatan: item.catatan,
       }))
 
       if (cart.length === 0) {
@@ -140,8 +146,7 @@ export const ManajemenPesanan = () => {
       })
 
       printChecker(
-        cart,
-        orderData.catatan,
+        cart, 
         formattedDate,
         orderData.tanggal_penjualan || orderData.created_at,
         orderData.nama_client
@@ -176,7 +181,10 @@ export const ManajemenPesanan = () => {
       const cart = orderData.items.map((item: any) => ({
         produk_id: item.produk_id,
         quantity: item.quantity,
-        produk: item.produk || { nama: 'Produk tidak ditemukan', harga: item.harga_satuan || item.harga || 0 }
+        produk: item.produk || { nama: 'Produk tidak ditemukan', harga: item.harga_satuan || item.harga || 0 },
+        coffee_strength: item.coffee_strength,
+        coffee_grams: item.coffee_grams,
+        catatan: item.catatan,
       }))
 
       if (cart.length === 0) {
@@ -188,7 +196,7 @@ export const ManajemenPesanan = () => {
         cart,
         orderData.nama_client,
         orderData.no_pesanan,
-        orderData.tanggal_penjualan || orderData.created_at
+        orderData.tanggal_penjualan || orderData.created_at,
       )
     } catch (error: any) {
       console.error('Error printing label:', error)
