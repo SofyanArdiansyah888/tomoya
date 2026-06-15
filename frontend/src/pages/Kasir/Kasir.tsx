@@ -23,8 +23,9 @@ import { shiftService } from '../../services/shift'
 import { recipeService } from '../../services/recipe'
 import { CartSidebar } from './CartSidebar'
 import { ProductCard } from './ProductCard'
-import { printReceipt } from '../../utils/printReceipt'
+import { printChecker } from '../../utils/printChecker'
 import { printLabel } from '../../utils/printLabel'
+import { printReceipt } from '../../utils/printReceipt'
 
 // Default shop location ID is 2
 const DEFAULT_SHOP_LOCATION_ID = 2
@@ -237,23 +238,55 @@ export const Kasir = () => {
     toast.success('Produk dihapus dari keranjang!')
   }
 
-  const LABEL_PRINT_DELAY_MS = 2000
+  const PRINT_DELAY_MS = 2000
 
-  const handlePrintReceiptAndLabel = () => {
-    printReceipt(
-      localCart,
-      total,
-      paymentMethod,
-      undefined,
-      undefined,
-      undefined,
-      clientName,
-      typeof amountPaid === 'number' ? amountPaid : undefined,
-      kembalian > 0 ? kembalian : undefined
-    )
-    setTimeout(() => {
-      printLabel(localCart, clientName)
-    }, LABEL_PRINT_DELAY_MS)
+  const handlePrintOnCheckout = (
+    cart: typeof localCart,
+    status: 'bayar' | 'belum_bayar',
+    checkoutTotal: number,
+    checkoutClientName: string,
+    checkoutAmountPaid: number | '',
+    checkoutKembalian: number
+  ): Promise<void> => {
+    if (cart.length === 0) return Promise.resolve()
+
+    const orderDate = new Date()
+    const formattedDate = orderDate.toLocaleString('id-ID', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit'
+    })
+
+    return new Promise((resolve) => {
+      const finishDelay = status === 'bayar' ? 3000 : 1000
+      const finish = () => setTimeout(resolve, finishDelay)
+
+      if (status === 'bayar') {
+        printReceipt(
+          cart,
+          checkoutTotal,
+          paymentMethod,
+          undefined,
+          orderDate,
+          undefined,
+          checkoutClientName,
+          typeof checkoutAmountPaid === 'number' ? checkoutAmountPaid : undefined,
+          checkoutKembalian > 0 ? checkoutKembalian : undefined
+        )
+        setTimeout(() => {
+          printLabel(cart, checkoutClientName, undefined, orderDate)
+          finish()
+        }, PRINT_DELAY_MS * 2)
+      } else {
+        printChecker(cart, formattedDate, orderDate, checkoutClientName)
+        setTimeout(() => {
+          printLabel(cart, checkoutClientName, undefined, orderDate)
+          finish()
+        }, PRINT_DELAY_MS)
+      }
+    })
   }
 
   // Helper function to get product stock from shop location
@@ -342,12 +375,27 @@ export const Kasir = () => {
       }))
     };
     
+    const cartSnapshot = [...localCart]
+    const checkoutClientName = clientName
+    const checkoutAmountPaid = amountPaid
+    const checkoutKembalian = kembalian
+    const checkoutPaymentStatus = paymentStatus
+
     createOrder.mutate(orderRequest, {
       onSuccess: () => {
-        setLocalCart([]);
-        setClientName('');
-        setQrisImage(null);
-        setAmountPaid('');
+        handlePrintOnCheckout(
+          cartSnapshot,
+          checkoutPaymentStatus,
+          total,
+          checkoutClientName,
+          checkoutAmountPaid,
+          checkoutKembalian
+        ).then(() => {
+          setLocalCart([])
+          setClientName('')
+          setQrisImage(null)
+          setAmountPaid('')
+        })
       }
     })
   }
@@ -682,8 +730,6 @@ export const Kasir = () => {
             onCoffeeOptionChange={handleCoffeeOptionChange}
             onCatatanChange={handleCatatanChange}
             onCheckout={handleCheckout}
-            onPrintReceipt={handlePrintReceiptAndLabel}
-            onPrintLabel={() => printLabel(localCart, clientName)}
             getProductStock={getProductStock}
             isCheckoutPending={createOrder.isPending}
           />

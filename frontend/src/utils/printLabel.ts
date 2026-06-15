@@ -47,8 +47,9 @@ const buildLabelHtml = (
         <div class="label-meta">${escapeHtml(orderNumber)}</div>
 
         <div class="label-main">
-          <div class="label-name">${productName}</div>
-          ${strengthLabel ? `<div class="label-strength">· ${escapeHtml(strengthLabel)}</div>` : ''}
+          <div class="label-name">
+            ${productName}${strengthLabel ? `<span class="label-strength"> · ${escapeHtml(strengthLabel)}</span>` : ''}
+          </div>
         </div>
 
         ${trimmedNotes ? `<div class="label-notes">${escapeHtml(trimmedNotes)}</div>` : ''}
@@ -152,20 +153,20 @@ export const printLabel = (
           height: 100%;
           display: flex;
           flex-direction: column;
-          justify-content: flex-start;
+          justify-content: space-between;
           align-items: stretch;
           text-align: left;
-          padding: 0.8mm 1.1mm;
-          gap: 0.4mm;
+          padding: 0.6mm 0.9mm;
+          gap: 0.3mm;
         }
         .label-meta {
-          font-size: 5px;
+          font-size: 1.5mm;
           font-weight: 700;
-          line-height: 1;
-          letter-spacing: 0.03em;
+          line-height: 1.1;
+          letter-spacing: 0.02em;
           color: #000;
-          border-bottom: 0.4px solid #000;
-          padding-bottom: 0.45mm;
+          border-bottom: 0.15mm solid #000;
+          padding-bottom: 0.25mm;
           flex-shrink: 0;
         }
         .label-main {
@@ -173,13 +174,12 @@ export const printLabel = (
           display: flex;
           flex-direction: column;
           justify-content: center;
-          gap: 0.35mm;
           min-height: 0;
         }
         .label-name {
-          font-size: 8px;
+          font-size: 2.5mm;
           font-weight: 800;
-          line-height: 1.05;
+          line-height: 1.1;
           text-transform: uppercase;
           word-wrap: break-word;
           overflow: hidden;
@@ -188,38 +188,33 @@ export const printLabel = (
           -webkit-box-orient: vertical;
         }
         .label-strength {
-          font-size: 4.5px;
-          font-weight: 600;
-          line-height: 1;
-          letter-spacing: 0.04em;
+          font-size: 1.8mm;
+          font-weight: 700;
+          line-height: 1.1;
+          letter-spacing: 0.02em;
           text-transform: uppercase;
-          align-self: flex-start;
-          padding: 0;
-          border: none;
-          border-radius: 0;
-          background: transparent;
-          color: #333;
+          white-space: nowrap;
         }
         .label-notes {
-          font-size: 5.5px;
+          font-size: 1.8mm;
           font-weight: 600;
           font-style: italic;
-          line-height: 1.1;
+          line-height: 1.15;
           color: #000;
           overflow: hidden;
           display: -webkit-box;
-          -webkit-line-clamp: 2;
+          -webkit-line-clamp: 1;
           -webkit-box-orient: vertical;
           flex-shrink: 0;
         }
         .label-client {
-          font-size: 6px;
+          font-size: 1.9mm;
           font-weight: 700;
-          line-height: 1;
+          line-height: 1.1;
           text-transform: uppercase;
           color: #000;
-          border-top: 0.3px solid #999;
-          padding-top: 0.35mm;
+          border-top: 0.12mm solid #666;
+          padding-top: 0.25mm;
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;

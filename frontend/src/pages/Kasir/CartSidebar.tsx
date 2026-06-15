@@ -1,6 +1,6 @@
 import { Card } from '../../components/ui/card'
 import { Button } from '../../components/ui/button'
-import { ShoppingCart, CreditCard, Receipt, Tag } from 'lucide-react'
+import { ShoppingCart, CreditCard } from 'lucide-react'
 import { formatPrice } from '../../lib/formatPrice'
 import { CartItem } from './CartItem'
 
@@ -35,8 +35,6 @@ interface CartSidebarProps {
   onCoffeeOptionChange: (lineId: string, strength: 'strong' | 'medium' | 'soft' | 'other', grams: number) => void
   onCatatanChange: (lineId: string, catatan: string) => void
   onCheckout: () => void
-  onPrintReceipt: () => void
-  onPrintLabel: () => void
   getProductStock: (productId: number) => number
   isCheckoutPending: boolean
 }
@@ -61,8 +59,6 @@ export const CartSidebar = ({
   onCoffeeOptionChange,
   onCatatanChange,
   onCheckout,
-  onPrintReceipt,
-  onPrintLabel,
   getProductStock,
   isCheckoutPending
 }: CartSidebarProps) => {
@@ -232,44 +228,20 @@ export const CartSidebar = ({
                 </div>
               )}
               
-              <div className="space-y-2">
-                <Button
-                  onClick={onCheckout}
-                  className="w-full"
-                  size="lg"
-                  disabled={
-                    isCheckoutPending ||
-                    (paymentMethod === 'cash' && paymentStatus === 'bayar' && (
-                      typeof amountPaid !== 'number' || amountPaid <= 0 || amountPaid < total
-                    ))
-                  }
-                >
-                  <CreditCard className="h-5 w-5 mr-2" />
-                  {isCheckoutPending ? 'Memproses...' : 'Bayar Sekarang'}
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  size="lg"
-                  onClick={onPrintReceipt}
-                  disabled={cart.length === 0}
-                >
-                  <Receipt className="h-5 w-5 mr-2" />
-                  Cetak Struk
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  className="w-full"
-                  size="lg"
-                  onClick={onPrintLabel}
-                  disabled={cart.length === 0}
-                >
-                  <Tag className="h-5 w-5 mr-2" />
-                  Cetak Label
-                </Button>
-              </div>
+              <Button
+                onClick={onCheckout}
+                className="w-full"
+                size="lg"
+                disabled={
+                  isCheckoutPending ||
+                  (paymentMethod === 'cash' && paymentStatus === 'bayar' && (
+                    typeof amountPaid !== 'number' || amountPaid <= 0 || amountPaid < total
+                  ))
+                }
+              >
+                <CreditCard className="h-5 w-5 mr-2" />
+                {isCheckoutPending ? 'Memproses...' : 'Bayar Sekarang'}
+              </Button>
             </div>
           </>
         ) : (
