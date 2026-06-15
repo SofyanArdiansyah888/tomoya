@@ -10,6 +10,7 @@ interface MixPreparationHeader {
   tanggal: string
   output_material?: { id: number; name: string; sku: string; unit: string }
   lokasi?: { id: number; nama: string; tipe: 'gudang' | 'toko' }
+  user?: { id: number; name: string; email?: string }
 }
 
 interface MixPreparationTableProps {
@@ -44,6 +45,7 @@ export const MixPreparationTable = ({ items, isLoading, onViewDetail }: MixPrepa
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Material Hasil</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah Hasil</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Keterangan</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
                 <th className="px-6 py-3" />
               </tr>
             </thead>
@@ -59,6 +61,7 @@ export const MixPreparationTable = ({ items, isLoading, onViewDetail }: MixPrepa
                   <td className="px-6 py-4">
                     <div className="text-sm text-gray-600 max-w-xs truncate">{item.keterangan || '-'}</div>
                   </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.user?.name || '-'}</td>
                   <td className="px-6 py-4 text-right">
                     <button
                       className="inline-flex items-center justify-center w-9 h-9 rounded-md border hover:bg-amber-50 text-amber-700 border-amber-200"

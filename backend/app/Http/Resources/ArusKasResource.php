@@ -45,10 +45,17 @@ class ArusKasResource extends JsonResource
             'toko' => $this->whenLoaded('lokasi', function () {
                 return [
                     'id' => $this->lokasi->id,
-                    'nama' => $this->lokasi->nama,
+                    'nama' => $this->lokasi->nama, 
                     'alamat' => $this->lokasi->alamat ?? '',
                 ];
             }), // Keep for backward compatibility
+            'user' => $this->whenLoaded('user', function () {
+                return [
+                    'id' => $this->user->id,
+                    'name' => $this->user->name,
+                    'email' => $this->user->email,
+                ];
+            }),
         ];
     }
 }

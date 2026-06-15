@@ -26,9 +26,6 @@ class Pesanan extends Model
 
     protected $casts = [
         'total_jumlah' => 'decimal:2',
-        'subtotal' => 'decimal:2',
-        'uang_dibayar' => 'decimal:2',
-        'kembalian' => 'decimal:2',
         'tanggal_penjualan' => 'datetime',
     ];
 
@@ -72,6 +69,6 @@ class Pesanan extends Model
 
     public function shiftKasir(): BelongsTo
     {
-        return $this->belongsTo(ShiftKasir::class);
+        return $this->belongsTo(ShiftKasir::class, 'shift_id'); 
     }
 }

@@ -21,10 +21,14 @@ import { InputPemasukanModal } from './InputPemasukanModal'
 import { TutupKasirModal } from './TutupKasirModal'
 // Using native JavaScript Date formatting
 
+// Default shop location ID is 2
+const DEFAULT_SHOP_LOCATION_ID = 2
+
 export const ShiftKasirPage = () => {
   const { toast } = useToast()
   const [showBukaModal, setShowBukaModal] = useState(false)
   const [showTutupModal, setShowTutupModal] = useState(false)
+  const [showDetailModal, setShowDetailModal] = useState(false)
   const [selectedShift, setSelectedShift] = useState<ShiftKasir | null>(null)
   const [showInputPemasukanModal, setShowInputPemasukanModal] = useState(false)
   const [filters, _] = useState<ShiftFilters>({
@@ -46,8 +50,8 @@ export const ShiftKasirPage = () => {
 
   // Fetch current shift
   const { data: currentShift,  refetch: refetchCurrent } = useQuery({
-    queryKey: ['shift-kasir', 'current'],
-    queryFn: () => shiftService.getCurrentShift(),
+    queryKey: ['shift-kasir', 'current', DEFAULT_SHOP_LOCATION_ID],
+    queryFn: () => shiftService.getCurrentShift(DEFAULT_SHOP_LOCATION_ID),
     refetchInterval: 30000, // Refetch every 30 seconds
   })
 
@@ -109,30 +113,16 @@ export const ShiftKasirPage = () => {
       await shiftService.inputPemasukan(selectedShift.id, payload)
       setShowInputPemasukanModal(false)
       setSelectedShift(null)
-      toast({ title: 'Berhasil', description: 'Pemasukan shift berhasil dicatat' })
+      toast({ title: 'Berhasil', description: 'Pemasukan shift berhasil disesuaikan' })
       refetchShifts()
     } catch (error: any) {
       toast({ title: 'Error', description: error.response?.data?.message || 'Gagal mencatat pemasukan shift', variant: 'destructive' })
     }
   }
 
-  const handleViewShift = async (shift: ShiftKasir) => {
-    try {
-      const detail = await shiftService.getShiftDetail(shift.id)
-      setSelectedShift(detail)
-      setShowTutupModal(false)
-      // Could open a detail modal here
-      toast({
-        title: 'Detail Shift',
-        description: `Shift #${shift.id} - ${shift.status === 'open' ? 'Aktif' : 'Ditutup'}`,
-      })
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: 'Gagal memuat detail shift',
-        variant: 'destructive'
-      })
-    }
+  const handleViewShift = (shift: ShiftKasir) => {
+    setSelectedShift(shift)
+    setShowDetailModal(true)
   }
 
   return (
@@ -162,7 +152,11 @@ export const ShiftKasirPage = () => {
             </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+              <div>
+                <p className="text-sm text-gray-600">Kasir</p>
+                <p className="text-lg font-semibold">{currentShift.user?.name || '-'}</p>
+              </div>
               <div>
                 <p className="text-sm text-gray-600">Saldo Awal</p>
                 <p className="text-lg font-semibold">{formatPrice(currentShift.saldo_awal)}</p>
@@ -222,6 +216,7 @@ export const ShiftKasirPage = () => {
                     <TableHead className='w-[140px] text-center'>No</TableHead>
                     <TableHead className='w-[220px]'>Tanggal</TableHead>
                     <TableHead className='w-[260px]'>Ringkasan</TableHead>
+                    <TableHead className='w-[140px]'>Kasir</TableHead>
                     <TableHead className='w-[120px] text-center'>Status</TableHead>
                     <TableHead className='w-[120px] text-center'>Aksi</TableHead>
                   </TableRow>
@@ -268,6 +263,9 @@ export const ShiftKasirPage = () => {
                           </span>
                         </div>
                       </TableCell>
+                      <TableCell className="text-xs font-medium text-gray-900">
+                        {shift.user?.name || '-'}
+                      </TableCell>
                       <TableCell className="text-center">
                         <Badge
                           variant={shift.status === 'open' ? 'default' : 'secondary'}
@@ -287,15 +285,15 @@ export const ShiftKasirPage = () => {
                             title="Lihat Detail"
                           >
                             <Eye className="h-4 w-4" />
-                          </Button>
-                          {shift.status === 'closed' && !shift.has_input_pemasukan && (
+                          </Button> 
+                          {shift.status === 'closed' && (
                             <Button
                               variant="ghost"
                               size="sm"
                               className="h-8 w-8 p-0"
                               onClick={() => handleInputPemasukan(shift)}
-                              aria-label="Input Pemasukan"
-                              title="Input Pemasukan"
+                              aria-label="Sesuaikan Pemasukan"
+                              title="Sesuaikan Pemasukan"
                             >
                               <Plus className="h-4 w-4" />
                             </Button>
@@ -330,12 +328,24 @@ export const ShiftKasirPage = () => {
         }}
         shift={(selectedShift ?? currentShift) as ShiftKasir | null}
         onSubmit={handleTutupKasir}
+        mode="close"
+      />
+
+      <TutupKasirModal
+        isOpen={showDetailModal}
+        onClose={() => {
+          setShowDetailModal(false)
+          setSelectedShift(null)
+        }}
+        shift={selectedShift}
+        mode="view"
       />
 
       <InputPemasukanModal
         isOpen={showInputPemasukanModal}
         onClose={() => { setShowInputPemasukanModal(false); setSelectedShift(null) }}
         onSubmit={submitInputPemasukan}
+        defaultJumlah={selectedShift?.total_penjualan}
       />
     </div>
   )

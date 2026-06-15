@@ -18,7 +18,6 @@ const formatCheckerOrderNumber = (date: Date): string => {
  */
 const buildCheckerReceiptContent = (
   cart: CartItemType[],
-  notes: string | undefined,
   formattedDate: string,
   orderDate: Date,
   clientName?: string
@@ -108,6 +107,13 @@ const buildCheckerReceiptContent = (
           margin-bottom: 4px;
           text-transform: uppercase;
         }
+        .item-note {
+          font-size: 9px;
+          color: #333;
+          font-style: italic;
+          margin-left: 31px;
+          margin-top: 1px;
+        }
         .checker-footer {
           text-align: center;
           margin-top: 8px;
@@ -139,15 +145,10 @@ const buildCheckerReceiptContent = (
               <span class="item-quantity">${item.quantity}x</span>
               <span class="item-name">${escapeHtml(item.produk?.nama || 'Produk')}</span>
             </div>
+            ${item.catatan?.trim() ? `<div class="item-note">Catatan: ${escapeHtml(item.catatan.trim())}</div>` : ''}
           `).join('')}
         </div>
       </div>
-
-      ${notes ? `
-        <div class="notes-section">
-          <strong>Catatan:</strong> ${notes}
-        </div>
-      ` : ''}
 
    
     </body>
@@ -157,7 +158,6 @@ const buildCheckerReceiptContent = (
 
 export const printChecker = (
   cart: CartItemType[],
-  notes: string | undefined,
   formattedDate: string,
   orderDate: string | Date | undefined,
   clientName?: string
@@ -167,11 +167,9 @@ export const printChecker = (
   }
 
   const date = orderDate ? new Date(orderDate) : new Date()
-
-  // Build checker receipt content
+ 
   const checkerReceiptContent = buildCheckerReceiptContent(
     cart,
-    notes,
     formattedDate,
     date,
     clientName

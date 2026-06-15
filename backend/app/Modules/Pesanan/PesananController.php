@@ -9,6 +9,7 @@ use App\Models\ArusKas;
 use App\Models\ItemLokasi;
 use App\Models\Produk;
 use App\Models\Material;
+use App\Models\ShiftKasir;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +17,59 @@ use App\Http\Resources\ApiResource;
 use App\Http\Resources\PesananResource;
 
 class PesananController extends Controller
-{
+{ 
+    private function resolveUserId(Request $request): int
+    {
+        return $request->user()?->id ?? 1;
+    } 
+
+    /**
+     * Non-cash tercatat langsung di arus_kas; cash hanya saat tutup shift.
+     */
+    private function shouldRecordPenjualanArusKas(Pesanan $pesanan): bool
+    {
+        return $pesanan->payment_status === 'bayar'
+            && $pesanan->metode_pembayaran !== 'cash';
+    }
+
+    private function syncPenjualanArusKas(Pesanan $pesanan, int $userId): void
+    {
+        $existing = ArusKas::where('referensi_type', 'Pesanan')
+            ->where('referensi_id', $pesanan->id)
+            ->first();
+
+        if (!$this->shouldRecordPenjualanArusKas($pesanan)) {
+            $existing?->delete();
+            return;
+        }
+
+        $payload = [
+            'user_id' => $userId,
+            'lokasi_id' => $pesanan->lokasi_id,
+            'shift_id' => $pesanan->shift_id,
+            'jenis' => 'pemasukan',
+            'kategori' => 'pemasukan_kasir',
+            'jumlah' => $pesanan->total_jumlah,
+            'subtotal' => $pesanan->subtotal ?? $pesanan->total_jumlah,
+            'uang_dibayar' => $pesanan->uang_dibayar,
+            'kembalian' => $pesanan->kembalian,
+            'deskripsi' => "Penjualan Kasir #{$pesanan->no_pesanan}",
+            'tanggal' => $pesanan->tanggal_penjualan
+                ? $pesanan->tanggal_penjualan->toDateString()
+                : now()->toDateString(),
+            'referensi_id' => $pesanan->id,
+            'referensi_type' => 'Pesanan',
+            'metode_pembayaran' => $pesanan->metode_pembayaran,
+            'status' => true,
+        ];
+
+        if ($existing) {
+            $existing->update($payload);
+        } else {
+            ArusKas::create($payload);
+        }
+    }
+
     /**
      * Hitung HPP per unit untuk item pesanan berdasarkan resep dan kondisi kopi.
      */
@@ -51,6 +104,183 @@ class PesananController extends Controller
         return round($totalCost, 2);
     }
 
+    private function normalizeOrderItemsStructure($items): array
+    {
+        return collect($items)->map(function ($item) {
+            $isModel = is_object($item);
+
+            return [
+                'produk_id' => (int) ($isModel ? $item->produk_id : ($item['produk_id'] ?? 0)),
+                'quantity' => (int) ($isModel ? $item->quantity : ($item['quantity'] ?? 0)),
+                'harga_satuan' => round((float) ($isModel ? $item->harga : ($item['harga_satuan'] ?? $item['harga'] ?? 0)), 2),
+                'coffee_grams' => $isModel
+                    ? (isset($item->coffee_grams) ? round((float) $item->coffee_grams, 2) : null)
+                    : (isset($item['coffee_grams']) ? round((float) $item['coffee_grams'], 2) : null),
+                'coffee_strength' => $isModel
+                    ? ($item->coffee_strength ?? null)
+                    : ($item['coffee_strength'] ?? null),
+            ];
+        })->sortBy(fn ($row) => implode('-', [
+            $row['produk_id'],
+            $row['quantity'],
+            $row['harga_satuan'],
+            $row['coffee_grams'] ?? 'null',
+            $row['coffee_strength'] ?? 'null',
+        ]))->values()->all();
+    } 
+
+    /**
+     * Normalisasi item pesanan untuk perbandingan perubahan (termasuk catatan).
+     */
+    private function normalizeOrderItems($items): array
+    {
+        return collect($items)->map(function ($item) {
+            $isModel = is_object($item);
+            $catatan = $isModel ? ($item->catatan ?? null) : ($item['catatan'] ?? null);
+            $catatan = is_string($catatan) && trim($catatan) !== '' ? trim($catatan) : null;
+
+            return [
+                'produk_id' => (int) ($isModel ? $item->produk_id : ($item['produk_id'] ?? 0)),
+                'quantity' => (int) ($isModel ? $item->quantity : ($item['quantity'] ?? 0)),
+                'harga_satuan' => round((float) ($isModel ? $item->harga : ($item['harga_satuan'] ?? $item['harga'] ?? 0)), 2),
+                'coffee_grams' => $isModel
+                    ? null
+                    : (isset($item['coffee_grams']) ? round((float) $item['coffee_grams'], 2) : null),
+                'coffee_strength' => $isModel
+                    ? ($item->coffee_strength ?? null)
+                    : ($item['coffee_strength'] ?? null),
+                'catatan' => $catatan,
+            ];
+        })->sortBy(fn ($row) => implode('-', [
+            $row['produk_id'],
+            $row['quantity'],
+            $row['harga_satuan'],
+            $row['coffee_grams'] ?? 'null',
+            $row['coffee_strength'] ?? 'null',
+            $row['catatan'] ?? 'null',
+        ]))->values()->all();
+    }
+
+    private function orderItemsStructureChanged($existingItems, array $newItems): bool
+    {
+        return $this->normalizeOrderItemsStructure($existingItems)
+            !== $this->normalizeOrderItemsStructure($newItems);
+    }
+
+    private function orderItemsHaveChanged($existingItems, array $newItems): bool
+    {
+        return $this->normalizeOrderItems($existingItems) !== $this->normalizeOrderItems($newItems);
+    }
+
+    private function syncItemCatatan(Pesanan $pesanan, array $items): void
+    {
+        $existing = $pesanan->itemPesanan()->orderBy('id')->get();
+
+        foreach ($items as $index => $item) {
+            $row = $existing->get($index);
+            if (!$row) {
+                continue;
+            }
+
+            $catatan = isset($item['catatan']) && is_string($item['catatan']) && trim($item['catatan']) !== ''
+                ? trim($item['catatan'])
+                : null;
+
+            if ($row->catatan !== $catatan) {
+                $row->update(['catatan' => $catatan]);
+            }
+        }
+    }
+
+    /**
+     * Batalkan efek stok bersih pesanan (reverse pergerakan keluar yang masih tersisa).
+     */
+    private function reverseOrderStockMovements(Pesanan $pesanan, int $userId): void
+    {
+        $netByMaterial = ItemLokasi::where('reference_type', Pesanan::class)
+            ->where('reference_id', $pesanan->id)
+            ->selectRaw('material_id, SUM(quantity) as net_quantity')
+            ->groupBy('material_id')
+            ->get();
+
+        foreach ($netByMaterial as $row) {
+            $netQuantity = (float) $row->net_quantity;
+            if ($netQuantity >= 0) {
+                continue;
+            }
+
+            $returnQty = abs($netQuantity);
+            $currentStock = ItemLokasi::getCurrentStock($pesanan->lokasi_id, $row->material_id);
+            $quantityAfter = $currentStock + $returnQty;
+
+            ItemLokasi::create([
+                'lokasi_id' => $pesanan->lokasi_id,
+                'material_id' => $row->material_id,
+                'tipe' => 'masuk',
+                'quantity' => $returnQty,
+                'quantity_before' => $currentStock,
+                'quantity_after' => $quantityAfter,
+                'reference_type' => Pesanan::class,
+                'reference_id' => $pesanan->id,
+                'keterangan' => "Rollback penjualan (Pesanan #{$pesanan->no_pesanan} - Update)",
+                'user_id' => $userId,
+                'tanggal' => now(),
+            ]);
+        }
+    }
+
+    /**
+     * Kurangi stok material untuk satu item pesanan.
+     */
+    private function deductStockForOrderItem(Pesanan $pesanan, Produk $produk, array $item, int $userId, string $keteranganSuffix = ''): void
+    {
+        if (!$produk->stockable || !$produk->resep || !$produk->resep->recipeMaterials) {
+            return;
+        }
+
+        $coffeeGrams = isset($item['coffee_grams']) ? (float) $item['coffee_grams'] : null;
+        $targetMaterialId = isset($item['target_material_id']) ? (int) $item['target_material_id'] : null;
+        $flaggedCoffeeMaterialId = null;
+
+        foreach ($produk->resep->recipeMaterials as $rm) {
+            if ($rm && $rm->material && ($rm->material->is_bahan_kopi ?? false)) {
+                $flaggedCoffeeMaterialId = $rm->material_id;
+                break;
+            }
+        }
+
+        foreach ($produk->resep->recipeMaterials as $recipeMaterial) {
+            if (!$recipeMaterial || !$recipeMaterial->material_id) {
+                continue;
+            }
+
+            $materialId = $recipeMaterial->material_id;
+            $requiredQuantityPerProduct = (float) $recipeMaterial->quantity;
+
+            if ($coffeeGrams !== null && (($targetMaterialId && $materialId === $targetMaterialId) || ($flaggedCoffeeMaterialId && $materialId === $flaggedCoffeeMaterialId))) {
+                $requiredQuantityPerProduct = $coffeeGrams;
+            }
+
+            $totalRequiredQuantity = $requiredQuantityPerProduct * $item['quantity'];
+            $currentStock = ItemLokasi::getCurrentStock($pesanan->lokasi_id, $materialId);
+            $quantityAfter = $currentStock - $totalRequiredQuantity;
+
+            ItemLokasi::create([
+                'lokasi_id' => $pesanan->lokasi_id,
+                'material_id' => $materialId,
+                'tipe' => 'keluar',
+                'quantity' => -$totalRequiredQuantity,
+                'quantity_before' => $currentStock,
+                'quantity_after' => $quantityAfter,
+                'reference_type' => Pesanan::class,
+                'reference_id' => $pesanan->id,
+                'keterangan' => "Penjualan produk {$produk->nama} (Pesanan #{$pesanan->no_pesanan}{$keteranganSuffix})",
+                'user_id' => $userId,
+                'tanggal' => now(),
+            ]);
+        }
+    }
+
     /**
      * Display a listing of the resource.
      */
@@ -61,7 +291,7 @@ class PesananController extends Controller
         
         // Get all orders from default location (shop)
         $query = Pesanan::where('lokasi_id', $defaultLokasiId)
-            ->with(['itemPesanan.produk.kategori', 'lokasi']);
+            ->with(['itemPesanan.produk.kategori', 'lokasi', 'user']);
 
         // Filter by date range
         if ($request->has('date_from') && $request->date_from) {
@@ -83,6 +313,9 @@ class PesananController extends Controller
             $query->where(function ($q) use ($search) {
                 $q->where('id', 'like', "%{$search}%")
                   ->orWhere('catatan', 'like', "%{$search}%")
+                  ->orWhereHas('itemPesanan', function ($q) use ($search) {
+                      $q->where('catatan', 'like', "%{$search}%");
+                  })
                   ->orWhereHas('itemPesanan.produk', function ($q) use ($search) {
                       $q->where('nama', 'like', "%{$search}%");
                   });
@@ -141,6 +374,7 @@ class PesananController extends Controller
             'items.*.coffee_strength' => 'nullable|in:strong,medium,soft,other',
             'items.*.coffee_grams' => 'nullable|numeric|min:0',
             'items.*.target_material_id' => 'nullable|exists:material,id',
+            'items.*.catatan' => 'nullable|string|max:500',
         ]);
 
         // Calculate total from items (already parsed above)
@@ -174,20 +408,8 @@ class PesananController extends Controller
             $kembalian = $request->kembalian;
         }
 
-        // Get user ID safely
-        // $user = $request->user();
-        // if (!$user) {
-        //     return response()->json([
-        //         'message' => 'User tidak terautentikasi. Silakan login terlebih dahulu.'
-        //     ], 401);
-        // }
-        $userId = 1;//$user->id;
-
-        // Cek apakah ada shift aktif untuk user dan lokasi
-        $shiftAktif = \App\Models\ShiftKasir::where('user_id', $userId)
-            ->where('lokasi_id', $request->lokasi_id)
-            ->where('status', 'open')
-            ->first();
+        $userId = $this->resolveUserId($request);
+        $shiftAktif = ShiftKasir::findActiveForLokasi((int) $request->lokasi_id, $userId);
 
         // Handle gambar QRIS upload
         $gambarQrisPath = null;
@@ -216,7 +438,7 @@ class PesananController extends Controller
                 'kembalian' => $kembalian,
                 'payment_status' => $statusPembayaran,
                 'alamat_pengiriman' => $request->alamat_pengiriman ?? '',
-                'catatan' => $request->catatan,
+                'catatan' => null,
                 'nama_client' => $request->nama_client,
                 'gambar_qris' => $gambarQrisPath,
                 'metode_pembayaran' => $request->metode_pembayaran,
@@ -242,6 +464,8 @@ class PesananController extends Controller
                     'quantity' => $item['quantity'],
                     'harga' => $item['harga_satuan'],
                     'hpp' => $hppPerUnit,
+                    'coffee_strength' => $item['coffee_strength'] ?? null,
+                    'catatan' => !empty($item['catatan']) ? trim($item['catatan']) : null,
                 ]);
 
                 // 3. Kurangi stok material berdasarkan resep produk (hanya untuk produk stockable)
@@ -264,31 +488,20 @@ class PesananController extends Controller
                         $materialId = $recipeMaterial->material_id;
                         if (!$materialId) {
                             continue;
-                        }
-                        
+                        } 
+                         
                         $requiredQuantityPerProduct = (float) $recipeMaterial->quantity;
                         if ($coffeeGrams !== null && (($targetMaterialId && $materialId === $targetMaterialId) || ($flaggedCoffeeMaterialId && $materialId === $flaggedCoffeeMaterialId))) {
                             $requiredQuantityPerProduct = (float) $coffeeGrams;
                         }
                         $totalRequiredQuantity = $requiredQuantityPerProduct * $item['quantity'];
-                        
-                        // Validasi stok tersedia
+
                         $currentStock = ItemLokasi::getCurrentStock($request->lokasi_id, $materialId);
-                        
-                        // if ($currentStock < $totalRequiredQuantity) {
-                        //     $materialName = $recipeMaterial->material ? $recipeMaterial->material->nama : "Material ID: {$materialId}";
-                        //     DB::rollback();
-                        //     return response()->json([
-                        //         'message' => "Stok material tidak mencukupi untuk produk {$produk->nama}. Material: {$materialName}, Stok tersedia: {$currentStock}, Dibutuhkan: {$totalRequiredQuantity}",
-                        //     ], 400);
-                        // }
-                        
-                        // Hitung stok setelah pengurangan
                         $quantityAfter = $currentStock - $totalRequiredQuantity;
-                        
+
                         // Buat record pergerakan stok (keluar)
                         ItemLokasi::create([
-                            'lokasi_id' => $request->lokasi_id,
+                            'lokasi_id' => $request->lokasi_id, 
                             'material_id' => $materialId,
                             'tipe' => 'keluar',
                             'quantity' => -$totalRequiredQuantity,
@@ -304,25 +517,8 @@ class PesananController extends Controller
                 }
             }
 
-            // 4. Buat arus kas (pemasukan dari penjualan kasir) - hanya jika status 'bayar'
             if ($statusPembayaran === 'bayar') {
-                ArusKas::create([
-                    'user_id' => $userId,
-                    'lokasi_id' => $request->lokasi_id,
-                    'shift_id' => $shiftAktif ? $shiftAktif->id : null,
-                    'jenis' => 'pemasukan',
-                    'kategori' => 'pemasukan_kasir',
-                    'jumlah' => $totalJumlah,
-                    'subtotal' => $subtotal,
-                    'uang_dibayar' => $uangDibayar,
-                    'kembalian' => $kembalian,
-                    'deskripsi' => "Penjualan Kasir #{$pesanan->no_pesanan}",
-                    'tanggal' => now()->toDateString(),
-                    'referensi_id' => $pesanan->id,
-                    'referensi_type' => 'Pesanan',  
-                    'metode_pembayaran' => $request->metode_pembayaran,
-                    'status' => ($request->metode_pembayaran === 'cash') ? false : true
-                ]);
+                $this->syncPenjualanArusKas($pesanan->fresh(), $userId);
             }
 
             DB::commit();
@@ -335,15 +531,15 @@ class PesananController extends Controller
         } catch (\Exception $e) {
             DB::rollback();
             return response()->json(['message' => 'Gagal membuat pesanan: ' . $e->getMessage()], 500);
-        }
+        } 
     }
 
     /**
      * Display the specified resource.
      */
     public function show(string $id): JsonResponse
-    {
-        $pesanan = Pesanan::with(['itemPesanan.produk.kategori', 'lokasi'])->findOrFail($id);
+    { 
+        $pesanan = Pesanan::with(['itemPesanan.produk.kategori', 'lokasi', 'user'])->findOrFail($id);
         return response()->json([
             'data' => new PesananResource($pesanan)
         ]);
@@ -393,11 +589,12 @@ class PesananController extends Controller
             $validationRules['items.*.coffee_strength'] = 'nullable|in:strong,medium,soft,other';
             $validationRules['items.*.coffee_grams'] = 'nullable|numeric|min:0';
             $validationRules['items.*.target_material_id'] = 'nullable|exists:material,id';
+            $validationRules['items.*.catatan'] = 'nullable|string|max:500';
         }
 
         $request->validate($validationRules);
 
-        $userId = 1; // $request->user()->id;
+        $userId = $this->resolveUserId($request);
         $newStatus = $request->status;
 
         // Calculate subtotal and kembalian if provided
@@ -430,99 +627,32 @@ class PesananController extends Controller
         DB::beginTransaction();
         
         try {
-            // Handle status change from 'belum_bayar' to 'bayar' - create ArusKas
+            // Handle status change from 'belum_bayar' to 'bayar' - assign shift if needed
             if ($oldStatus === 'belum_bayar' && $newStatus === 'bayar') {
-                // Check if ArusKas already exists
-                $existingArusKas = ArusKas::where('referensi_type', 'Pesanan')
-                    ->where('referensi_id', $pesanan->id)
-                    ->first();
+                $shiftAktif = ShiftKasir::findActiveForLokasi((int) $pesanan->lokasi_id, $userId);
 
-                if (!$existingArusKas) {
-                    $shiftAktif = \App\Models\ShiftKasir::where('user_id', $userId)
-                        ->where('lokasi_id', $pesanan->lokasi_id)
-                        ->where('status', 'open')
-                        ->first();
-                    
-                    ArusKas::create([
-                        'user_id' => $userId,
-                        'lokasi_id' => $pesanan->lokasi_id,
-                        'shift_id' => $shiftAktif ? $shiftAktif->id : null,
-                        'jenis' => 'pemasukan',
-                        'kategori' => 'pemasukan_kasir',
-                        'jumlah' => $pesanan->total_jumlah,
-                        'subtotal' => $pesanan->subtotal ?? $pesanan->total_jumlah,
-                        'uang_dibayar' => $pesanan->uang_dibayar,
-                        'kembalian' => $pesanan->kembalian,
-                        'deskripsi' => "Penjualan Kasir #{$pesanan->id}",
-                        'tanggal' => $pesanan->tanggal_penjualan ? $pesanan->tanggal_penjualan->toDateString() : now()->toDateString(),
-                        'referensi_id' => $pesanan->id,
-                        'referensi_type' => 'Pesanan',
-                        'metode_pembayaran' => $pesanan->metode_pembayaran,
-                        'status' => ($pesanan->metode_pembayaran === 'cash') ? false : true
-                    ]);
+                if ($shiftAktif && !$pesanan->shift_id) {
+                    $pesanan->shift_id = $shiftAktif->id;
+                    $pesanan->save();
                 }
             }
 
-            // Handle status change from 'bayar' to 'belum_bayar' - delete/update ArusKas
-            if ($oldStatus === 'bayar' && $newStatus === 'belum_bayar') {
-                $arusKas = ArusKas::where('referensi_type', 'Pesanan')
-                    ->where('referensi_id', $pesanan->id)
-                    ->first();
+            // Handle items update when struktur berubah, atau sync catatan saja
+            $structureChanged = $request->has('items')
+                && $this->orderItemsStructureChanged($pesanan->itemPesanan, $request->items);
 
-                if ($arusKas) {
-                    $arusKas->delete();
-                }
-            }
+            if ($pesanan->payment_status === 'belum_bayar' && $structureChanged) {
+                $this->reverseOrderStockMovements($pesanan, $userId);
 
-            // Handle items update (only for unpaid orders)
-            if ($pesanan->payment_status === 'belum_bayar' && $request->has('items')) {
-                // Rollback stock: add back materials from old items
-                foreach ($pesanan->itemPesanan as $oldItem) {
-                    $produk = Produk::with(['resep.recipeMaterials.material'])->find($oldItem->produk_id);
-                    
-                    if ($produk && $produk->stockable && $produk->resep && $produk->resep->recipeMaterials) {
-                        foreach ($produk->resep->recipeMaterials as $recipeMaterial) {
-                            if (!$recipeMaterial || !$recipeMaterial->material_id) {
-                                continue;
-                            }
-                            
-                            $materialId = $recipeMaterial->material_id;
-                            $requiredQuantityPerProduct = (float)$recipeMaterial->quantity;
-                            $totalRequiredQuantity = $requiredQuantityPerProduct * $oldItem->quantity;
-                            
-                            $currentStock = ItemLokasi::getCurrentStock($pesanan->lokasi_id, $materialId);
-                            $quantityAfter = $currentStock + $totalRequiredQuantity;
-                            
-                            // Record stock movement (masuk) - rollback
-                            ItemLokasi::create([
-                                'lokasi_id' => $pesanan->lokasi_id,
-                                'material_id' => $materialId,
-                                'tipe' => 'masuk',
-                                'quantity' => $totalRequiredQuantity,
-                                'quantity_before' => $currentStock,
-                                'quantity_after' => $quantityAfter,
-                                'reference_type' => Pesanan::class,
-                                'reference_id' => $pesanan->id,
-                                'keterangan' => "Rollback penjualan produk {$produk->nama} (Pesanan #{$pesanan->no_pesanan} - Update)",
-                                'user_id' => $userId,
-                                'tanggal' => now(),
-                            ]);
-                        }
-                    }
-                }
-
-                // Delete old items
                 $pesanan->itemPesanan()->delete();
 
-                // Calculate new total
                 $totalJumlah = collect($request->items)->sum(function ($item) {
                     return $item['quantity'] * $item['harga_satuan'];
                 });
 
-                // Create new items and reduce stock
                 foreach ($request->items as $item) {
                     $produk = Produk::with(['resep.recipeMaterials.material'])->find($item['produk_id']);
-                    
+
                     if (!$produk) {
                         DB::rollback();
                         return response()->json([
@@ -533,75 +663,26 @@ class PesananController extends Controller
                     $hppPerUnit = $this->calculateItemHpp($produk, $item);
 
                     ItemPesanan::create([
-                        'pesanan_id' => $pesanan->id,
+                        'pesanan_id' => $pesanan->id, 
                         'produk_id' => $item['produk_id'],
                         'quantity' => $item['quantity'],
-                        'harga' => $item['harga_satuan'],
+                        'harga' => $item['harga_satuan'], 
                         'hpp' => $hppPerUnit,
+                        'coffee_strength' => $item['coffee_strength'] ?? null,
+                        'catatan' => !empty($item['catatan']) ? trim($item['catatan']) : null,
                     ]);
 
-                    // Reduce stock for new items
-                    if ($produk->stockable && $produk->resep && $produk->resep->recipeMaterials) {
-                        $coffeeGrams = isset($item['coffee_grams']) ? (float) $item['coffee_grams'] : null;
-                        $targetMaterialId = isset($item['target_material_id']) ? (int) $item['target_material_id'] : null;
-                        $flaggedCoffeeMaterialId = null;
-                        foreach ($produk->resep->recipeMaterials as $rm) {
-                            if ($rm && $rm->material && ($rm->material->is_bahan_kopi ?? false)) {
-                                $flaggedCoffeeMaterialId = $rm->material_id;
-                                break;
-                            }
-                        }
-
-                        foreach ($produk->resep->recipeMaterials as $recipeMaterial) {
-                            if (!$recipeMaterial || !$recipeMaterial->material_id) {
-                                continue;
-                            }
-                            
-                            $materialId = $recipeMaterial->material_id;
-                            $requiredQuantityPerProduct = (float) $recipeMaterial->quantity;
-                            if ($coffeeGrams !== null && (($targetMaterialId && $materialId === $targetMaterialId) || ($flaggedCoffeeMaterialId && $materialId === $flaggedCoffeeMaterialId))) {
-                                $requiredQuantityPerProduct = (float) $coffeeGrams;
-                            }
-                            $totalRequiredQuantity = $requiredQuantityPerProduct * $item['quantity'];
-                            
-                            // Validate stock available
-                            $currentStock = ItemLokasi::getCurrentStock($pesanan->lokasi_id, $materialId);
-                            
-                            if ($currentStock < $totalRequiredQuantity) {
-                                $materialName = $recipeMaterial->material ? $recipeMaterial->material->nama : "Material ID: {$materialId}";
-                                DB::rollback();
-                                return response()->json([
-                                    'message' => "Stok material tidak mencukupi untuk produk {$produk->nama}. Material: {$materialName}, Stok tersedia: {$currentStock}, Dibutuhkan: {$totalRequiredQuantity}",
-                                ], 400);
-                            }
-                            
-                            $quantityAfter = $currentStock - $totalRequiredQuantity;
-                            
-                            // Record stock movement (keluar)
-                            ItemLokasi::create([
-                                'lokasi_id' => $pesanan->lokasi_id,
-                                'material_id' => $materialId,
-                                'tipe' => 'keluar',
-                                'quantity' => -$totalRequiredQuantity,
-                                'quantity_before' => $currentStock,
-                                'quantity_after' => $quantityAfter,
-                                'reference_type' => Pesanan::class,
-                                'reference_id' => $pesanan->id,
-                                'keterangan' => "Penjualan produk {$produk->nama} (Pesanan #{$pesanan->id} - Update)",
-                                'user_id' => $userId,
-                                'tanggal' => now(),
-                            ]);
-                        }
-                    }
+                    $this->deductStockForOrderItem($pesanan, $produk, $item, $userId, ' - Update');
                 }
-
-                // Update total_jumlah and subtotal
+ 
                 $pesanan->total_jumlah = $totalJumlah;
                 if ($request->has('subtotal')) {
                     $pesanan->subtotal = $request->subtotal;
                 } else {
                     $pesanan->subtotal = $totalJumlah;
                 }
+            } elseif ($pesanan->payment_status === 'belum_bayar' && $request->has('items')) {
+                $this->syncItemCatatan($pesanan, $request->items);
             }
 
             // Handle gambar QRIS upload
@@ -644,23 +725,8 @@ class PesananController extends Controller
             }
 
             $pesanan->update($updateData);
-
-            // Update ArusKas if status changed to 'bayar' and amount changed
-            if ($newStatus === 'bayar') {
-                $arusKas = ArusKas::where('referensi_type', 'Pesanan')
-                    ->where('referensi_id', $pesanan->id)
-                    ->first();
-
-                if ($arusKas) {
-                    $arusKas->update([
-                        'jumlah' => $pesanan->total_jumlah,
-                        'subtotal' => $pesanan->subtotal ?? $pesanan->total_jumlah,
-                        'uang_dibayar' => $pesanan->uang_dibayar,
-                        'kembalian' => $pesanan->kembalian,
-                        'metode_pembayaran' => $pesanan->metode_pembayaran,
-                    ]);
-                }
-            }
+            $pesanan->refresh();
+            $this->syncPenjualanArusKas($pesanan, $userId);
 
             DB::commit();
 

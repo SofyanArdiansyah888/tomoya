@@ -16,12 +16,7 @@ class ArusKasController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        // Get user ID safely
-        $user = $request->user();
-        $userId = $user ? $user->id : 1; // Fallback untuk development
-        
-        $query = ArusKas::with(['lokasi'])
-            ->where('user_id', $userId);
+        $query = ArusKas::with(['lokasi', 'user'])->forLaporan();
 
         if ($request->has('status')) {
             $query->where('status', $request->boolean('status'));
@@ -73,10 +68,17 @@ class ArusKasController extends Controller
             });
         }
 
-        // Sorting
-        $sortBy = $request->get('sort_by', 'tanggal');
-        $sortOrder = $request->get('sort_order', 'desc');
+        // Sorting — default: data terbaru dulu
+        $allowedSortColumns = ['tanggal', 'created_at', 'jumlah', 'id'];
+        $sortBy = $request->get('sort_by', 'created_at'); 
+        if (!in_array($sortBy, $allowedSortColumns, true)) {
+            $sortBy = 'created_at';
+        }
+        $sortOrder = strtolower($request->get('sort_order', 'desc')) === 'asc' ? 'asc' : 'desc';
         $query->orderBy($sortBy, $sortOrder);
+        if ($sortBy !== 'id') {
+            $query->orderBy('id', 'desc');
+        }
 
         // Pagination
         $perPage = $request->get('per_page', 15);
@@ -93,18 +95,14 @@ class ArusKasController extends Controller
                 'to' => $arusKas->lastItem(),
             ]
         ]);
-    }
+    } 
 
     /**
      * Get cash flow statistics
      */
     public function stats(Request $request): JsonResponse
     {
-        // Get user ID safely
-        $user = $request->user();
-        $userId = $user ? $user->id : 1; // Fallback untuk development
-        
-        $query = ArusKas::where('user_id', $userId);
+        $query = ArusKas::query()->forLaporan();
         if ($request->has('status')) {
             $query->where('status', $request->boolean('status'));
         }
@@ -171,23 +169,16 @@ class ArusKasController extends Controller
      */
     public function filterOptions(Request $request): JsonResponse
     {
-        // Get user ID safely
-        $user = $request->user();
-        $userId = $user ? $user->id : 1; // Fallback untuk development
-
-        $kategoris = ArusKas::where('user_id', $userId)
-            ->select('kategori')
+        $kategoris = ArusKas::select('kategori')
             ->distinct()
             ->pluck('kategori');
 
-        $subKategoris = ArusKas::where('user_id', $userId)
-            ->whereNotNull('sub_kategori')
+        $subKategoris = ArusKas::whereNotNull('sub_kategori')
             ->select('sub_kategori')
             ->distinct()
             ->pluck('sub_kategori');
 
-        $lokasis = ArusKas::where('user_id', $userId)
-            ->with('lokasi:id,nama')
+        $lokasis = ArusKas::with('lokasi:id,nama')
             ->select('lokasi_id')
             ->distinct()
             ->get()

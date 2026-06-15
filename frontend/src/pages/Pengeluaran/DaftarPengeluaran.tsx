@@ -404,6 +404,10 @@ export const DaftarPengeluaran = () => {
                 <p className="text-lg">{viewingPengeluaran.metode_pembayaran_label}</p>
               </div>
               <div>
+                <label className="text-sm font-medium text-gray-500">User</label>
+                <p className="text-lg">{viewingPengeluaran.user?.name || '-'}</p>
+              </div>
+              <div>
                 <label className="text-sm font-medium text-gray-500">Referensi</label>
                 <p className="text-lg">{viewingPengeluaran.referensi || '-'}</p>
               </div>

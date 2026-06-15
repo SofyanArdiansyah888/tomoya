@@ -38,7 +38,6 @@ class PembelianResource extends JsonResource
                     'id' => $this->lokasi->id,
                     'nama' => $this->lokasi->nama,
                     'alamat' => $this->lokasi->alamat,
-                    'tipe' => $this->lokasi->tipe,
                 ];
             }),
             'user' => $this->whenLoaded('user', function () {
@@ -62,8 +61,6 @@ class PembelianResource extends JsonResource
                             'sku' => $item->material->sku,
                             'purchase_price' => (float) $item->material->purchase_price,
                             'unit' => $item->material->unit,
-                            'unit_gudang' => $item->material->unit_gudang,
-                            'nilai_konversi' => (float) ($item->material->nilai_konversi ?? 1),
                         ] : null,
                     ];
                 });

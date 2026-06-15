@@ -27,18 +27,19 @@ interface CartItemType {
   produk: any
   coffee_strength?: 'strong' | 'medium' | 'soft' | 'other'
   coffee_grams?: number
+  catatan?: string
 }
 
 export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) => {
   const [cart, setCart] = useState<CartItemType[]>([])
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'qris' | 'other'>('cash')
   const [paymentStatus, setPaymentStatus] = useState<'bayar' | 'belum_bayar'>('belum_bayar')
-  const [notes, setNotes] = useState('')
   const [clientName, setClientName] = useState('')
   const [qrisImage, setQrisImage] = useState<File | null>(null)
   const [showAddProduct, setShowAddProduct] = useState(false)
   const [searchProduct, setSearchProduct] = useState('')
   const [amountPaid, setAmountPaid] = useState<number | ''>('')
+  const [initialItemsSnapshot, setInitialItemsSnapshot] = useState<string>('')
 
   const updateOrder = useUpdateOrder()
 
@@ -61,7 +62,36 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
       })
     },
     enabled: showAddProduct && isOpen,
-  })
+  }) 
+
+  const buildItemsPayload = (cartItems: CartItemType[]) =>
+    cartItems.map(item => ({
+      produk_id: Number(item.produk_id),
+      quantity: Number(item.quantity),
+      harga_satuan: Number(item.produk?.harga || 0),
+      coffee_strength: item.coffee_strength,
+      coffee_grams: typeof item.coffee_grams === 'number' ? item.coffee_grams : undefined,
+      target_material_id: resolveCoffeeMaterialId(item.produk),
+      catatan: item.catatan?.trim() || undefined,
+    }))
+
+  const snapshotItems = (cartItems: CartItemType[]) =>
+    JSON.stringify(
+      buildItemsPayload(cartItems)
+        .map(item => ({
+          produk_id: item.produk_id,
+          quantity: item.quantity,
+          harga_satuan: item.harga_satuan,
+          coffee_strength: item.coffee_strength ?? null,
+          coffee_grams: item.coffee_grams ?? null,
+          catatan: item.catatan?.trim() || null,
+        }))
+        .sort((a, b) =>
+          `${a.produk_id}-${a.quantity}-${a.harga_satuan}`.localeCompare(
+            `${b.produk_id}-${b.quantity}-${b.harga_satuan}`
+          )
+        )
+    )
 
   // Initialize form from order
   useEffect(() => {
@@ -80,12 +110,13 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
         },
         coffee_strength: item.coffee_strength,
         coffee_grams: typeof item.coffee_grams === 'number' ? item.coffee_grams : undefined,
+        catatan: item.catatan || '',
       }))
       
       setCart(cartItems)
+      setInitialItemsSnapshot(snapshotItems(cartItems))
       setPaymentMethod(order.metode_pembayaran || 'cash')
       setPaymentStatus(order.status || 'belum_bayar')
-      setNotes(order.catatan || '')
       setClientName(order.nama_client || '')
       setQrisImage(null) // Reset QRIS image
       setAmountPaid((order as any).uang_dibayar || '')
@@ -122,7 +153,8 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
         line_id: `line-${product.id}-${Date.now()}`,
         produk_id: product.id,
         quantity: 1,
-        produk: product
+        produk: product,
+        catatan: '',
       }])
     }
     setShowAddProduct(false)
@@ -137,6 +169,12 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
   const handleCoffeeOptionChange = (lineId: string, strength: 'strong' | 'medium' | 'soft' | 'other' | undefined, grams: number) => {
     setCart(cart.map(item => (
       item.line_id === lineId ? { ...item, coffee_strength: strength, coffee_grams: grams } : item
+    )))
+  }
+
+  const handleCatatanChange = (lineId: string, catatan: string) => {
+    setCart(cart.map(item => (
+      item.line_id === lineId ? { ...item, catatan } : item
     )))
   }
 
@@ -186,34 +224,18 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
       return
     }
 
-    // Validate stock
-    for (const item of cart) {
-      if (item.produk?.stockable) {
-        const availableStock = getProductStock(item.produk_id)
-        if (item.quantity > availableStock) {
-          toast.error(`${item.produk?.nama}: Stok tidak mencukupi! Stok tersedia: ${availableStock}`)
-          return
-        }
-      }
-    }
-
-    // Build JSON payload (follow create flow)
-    const itemsPayload = cart.map(item => ({
-      produk_id: Number(item.produk_id),
-      quantity: Number(item.quantity),
-      harga_satuan: Number(item.produk?.harga || 0),
-      coffee_strength: item.coffee_strength,
-      coffee_grams: typeof item.coffee_grams === 'number' ? item.coffee_grams : undefined,
-      target_material_id: resolveCoffeeMaterialId(item.produk),
-    }))
+    const itemsPayload = buildItemsPayload(cart)
+    const itemsChanged = snapshotItems(cart) !== initialItemsSnapshot
 
     const orderData: any = {
       status: paymentStatus,
       metode_pembayaran: paymentMethod,
       subtotal: Number(subtotal),
-      items: itemsPayload,
     }
-    if (notes) orderData.catatan = notes
+
+    if (itemsChanged) {
+      orderData.items = itemsPayload
+    }
     if (clientName) orderData.nama_client = clientName
     if (paymentMethod === 'cash' && paymentStatus === 'bayar' && typeof amountPaid === 'number') {
       orderData.uang_dibayar = Number(amountPaid)
@@ -282,14 +304,11 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
                   !cart.find(item => item.produk_id === p.id)
                 ).map((product: any) => {
                   const stock = getProductStock(product.id)
-                  const isDisabled = product.stockable && stock <= 0
-                  return (
+                  return ( 
                     <div
                       key={product.id}
-                      className={`flex items-center justify-between p-2 rounded border ${isDisabled ? 'bg-gray-100 opacity-60 cursor-not-allowed' : 'bg-white hover:bg-gray-50 cursor-pointer'}`}
-                      onClick={isDisabled ? undefined : () => handleAddProduct(product)}
-                      aria-disabled={isDisabled}
-                      title={isDisabled ? 'Stok kosong' : ''}
+                      className="flex items-center justify-between p-2 rounded border bg-white hover:bg-gray-50 cursor-pointer"
+                      onClick={() => handleAddProduct(product)}
                     >
                       <div>
                         <p className="font-medium text-sm">{product.nama}</p>
@@ -302,7 +321,7 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
                           )}
                         </p>
                       </div>
-                      <Button variant="ghost" size="sm" disabled={isDisabled}>
+                      <Button variant="ghost" size="sm">
                         <Plus className="h-4 w-4" />
                       </Button>
                     </div>
@@ -322,6 +341,7 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
                     onQuantityChange={handleQuantityChange}
                     onRemove={(lineId) => handleRemoveItem(lineId)}
                     onCoffeeOptionChange={(lineId, strength, grams) => handleCoffeeOptionChange(lineId, strength, grams)}
+                    onCatatanChange={handleCatatanChange}
                   />
                 </div>
               ))
@@ -417,20 +437,6 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
               )}
             </div>
           )}
-
-          {/* Notes */}
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              Catatan (Opsional)
-            </label>
-            <textarea
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Catatan untuk pesanan..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-              rows={3}
-            />
-          </div>
 
           {/* Total */}
           <div className="flex justify-between items-center pt-4 border-t pb-3 border-b">

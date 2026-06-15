@@ -14,6 +14,15 @@ export interface ShiftKasir {
   total_pemasukan: number;
   total_pengeluaran: number;
   total_arus_kas: number;
+  cash_flow?: {
+    penjualan_cash: number;
+    pemasukan_cash: number;
+    total_cash_masuk: number;
+    pengeluaran_cash: number;
+    pembelian_cash: number;
+    total_cash_keluar: number;
+    expected_saldo_akhir: number;
+  };
   selisih: number | null;
   tanggal_buka: string;
   tanggal_tutup: string | null;

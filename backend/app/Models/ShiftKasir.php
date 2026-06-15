@@ -133,64 +133,211 @@ class ShiftKasir extends Model
     }
 
     /**
+     * Shift kasir aktif untuk lokasi tertentu.
+     */
+    public static function findActiveForLokasi(int $lokasiId, ?int $userId = null): ?self
+    {
+        $query = self::query()
+            ->where('lokasi_id', $lokasiId)
+            ->where('status', 'open'); 
+
+        if ($userId) {
+            $userShift = (clone $query)->where('user_id', $userId)->orderByDesc('id')->first();
+            if ($userShift) {
+                return $userShift;
+            }
+        }
+
+        return $query->orderByDesc('id')->first();
+    }
+
+    /**
+     * Entri agregat closing shift di arus_kas.
+     */
+    public function closingArusKasQuery()
+    {
+        return $this->arusKas()
+            ->where('jenis', 'pemasukan')
+            ->where('kategori', 'pemasukan_kasir')
+            ->where('sub_kategori', 'penjualan_kasir')
+            ->where('referensi_type', 'ShiftKasir')
+            ->where('referensi_id', $this->id);
+    }
+
+    /**
+     * Arus kas penjualan kasir (bukan input closing shift).
+     */
+    public function penjualanArusKasQuery()
+    {
+        return $this->arusKas()
+            ->where('jenis', 'pemasukan')
+            ->where('kategori', 'pemasukan_kasir')
+            ->where(function ($query) {
+                $query->whereNull('sub_kategori')
+                    ->orWhere('sub_kategori', '!=', 'penjualan_kasir');
+            })
+            ->where(function ($query) {
+                $query->where('referensi_type', 'Pesanan')
+                    ->orWhere('referensi_type', Pesanan::class);
+            });
+    }
+
+    /**
+     * Pesanan yang sudah dibayar dan terkait shift ini.
+     */
+    public function paidPesananQuery()
+    {
+        $shiftEnd = $this->tanggal_tutup ?? now();
+
+        $pesananIdsFromArusKas = $this->penjualanArusKasQuery()
+            ->pluck('referensi_id')
+            ->filter();
+
+        return Pesanan::query()
+            ->where('lokasi_id', $this->lokasi_id)
+            ->where('payment_status', 'bayar')
+            ->where(function ($query) use ($pesananIdsFromArusKas, $shiftEnd) {
+                $query->where('shift_id', $this->id);
+
+                if ($pesananIdsFromArusKas->isNotEmpty()) {
+                    $query->orWhereIn('id', $pesananIdsFromArusKas);
+                }
+
+                $query->orWhere(function ($subQuery) use ($shiftEnd) {
+                    $subQuery->whereNull('shift_id')
+                        ->where('created_at', '>=', $this->tanggal_buka)
+                        ->where('created_at', '<=', $shiftEnd);
+                });
+            });
+    }
+
+    /**
+     * Hitung total penjualan per metode pembayaran.
+     */
+    protected function calculatePenjualanTotals(): array
+    {
+        $paidPesanan = $this->paidPesananQuery()->get();
+
+        $pesananIdsFromArusKas = $this->penjualanArusKasQuery()
+            ->pluck('referensi_id')
+            ->filter();
+
+        if ($pesananIdsFromArusKas->isNotEmpty()) {
+            $pesananFromArusKas = Pesanan::query()
+                ->whereIn('id', $pesananIdsFromArusKas)
+                ->where('payment_status', 'bayar')
+                ->get();
+
+            $paidPesanan = $paidPesanan
+                ->merge($pesananFromArusKas)
+                ->unique('id')
+                ->values();
+        }
+
+        if ($paidPesanan->isNotEmpty()) {
+            return [
+                'total_penjualan_cash' => $paidPesanan
+                    ->where('metode_pembayaran', 'cash')
+                    ->sum(fn ($pesanan) => (float) $pesanan->total_jumlah),
+                'total_penjualan_card' => $paidPesanan
+                    ->where('metode_pembayaran', 'card')
+                    ->sum('total_jumlah'),
+                'total_penjualan_qris' => $paidPesanan
+                    ->where('metode_pembayaran', 'qris')
+                    ->sum('total_jumlah'),
+                'total_penjualan_other' => $paidPesanan
+                    ->where('metode_pembayaran', 'other')
+                    ->sum('total_jumlah'),
+                'total_penjualan' => $paidPesanan->sum('total_jumlah'),
+            ];
+        }
+
+        $arusKasPenjualan = $this->penjualanArusKasQuery()->get();
+ 
+        return [
+            'total_penjualan_cash' => $arusKasPenjualan
+                ->where('metode_pembayaran', 'cash')
+                ->sum(fn ($arusKas) => (float) $arusKas->jumlah),
+            'total_penjualan_card' => $arusKasPenjualan
+                ->where('metode_pembayaran', 'card')
+                ->sum('jumlah'),
+            'total_penjualan_qris' => $arusKasPenjualan
+                ->where('metode_pembayaran', 'qris')
+                ->sum('jumlah'),
+            'total_penjualan_other' => $arusKasPenjualan
+                ->where('metode_pembayaran', 'other')
+                ->sum('jumlah'),
+            'total_penjualan' => $arusKasPenjualan->sum('jumlah'),
+        ];
+    }
+
+    /**
+     * Hitung arus cash fisik di laci tanpa double-count dari mirror arus_kas.
+     */
+    public function calculateCashFlow(): array
+    {
+        $paidPesanan = $this->paidPesananQuery()->get();
+
+        $penjualanCash = (float) $paidPesanan
+            ->where('metode_pembayaran', 'cash')
+            ->sum(fn ($pesanan) => (float) $pesanan->total_jumlah);
+
+        $pemasukanCash = (float) $this->pemasukan()
+            ->where('metode_pembayaran', 'cash')
+            ->sum('jumlah');
+
+        $pengeluaranCash = (float) $this->pengeluaran()
+            ->where('metode_pembayaran', 'cash')
+            ->sum('jumlah');
+
+        $pembelianCash = (float) $this->pembelian()
+            ->where('metode_pembayaran', 'cash')
+            ->sum('total_harga');
+
+        $totalCashMasuk = $penjualanCash + $pemasukanCash;
+        $totalCashKeluar = $pengeluaranCash + $pembelianCash;
+        $expectedSaldoAkhir = (float) $this->saldo_awal + $totalCashMasuk - $totalCashKeluar;
+
+        return [
+            'penjualan_cash' => $penjualanCash,
+            'pemasukan_cash' => $pemasukanCash,
+            'total_cash_masuk' => $totalCashMasuk,
+            'pengeluaran_cash' => $pengeluaranCash,
+            'pembelian_cash' => $pembelianCash,
+            'total_cash_keluar' => $totalCashKeluar,
+            'expected_saldo_akhir' => $expectedSaldoAkhir,
+        ];
+    }
+
+    /**
      * Calculate totals from all transactions in this shift
      */
     public function calculateTotals(): array
-    {
-        // Calculate penjualan per metode pembayaran - hanya pesanan yang sudah dibayar
-        // Untuk cash, gunakan uang_dibayar jika ada, otherwise total_jumlah
-        $penjualanCash = $this->pesanan()
-            ->where('payment_status', 'bayar')
-            ->where('metode_pembayaran', 'cash')
-            ->get()
-            ->sum(function ($pesanan) {
-                return $pesanan->uang_dibayar ?? $pesanan->total_jumlah;
-            });
-        
-        $penjualanCard = $this->pesanan()
-            ->where('payment_status', 'bayar')
-            ->where('metode_pembayaran', 'card')
-            ->sum('total_jumlah');
-        
-        $penjualanQris = $this->pesanan()
-            ->where('payment_status', 'bayar')
-            ->where('metode_pembayaran', 'qris')
-            ->sum('total_jumlah');
-        
-        $penjualanOther = $this->pesanan()
-            ->where('payment_status', 'bayar')
-            ->where('metode_pembayaran', 'other')
-            ->sum('total_jumlah');
-        
-        $totalPenjualan = $this->pesanan()
-            ->where('payment_status', 'bayar')
-            ->sum('total_jumlah');
+    { 
+        $penjualanTotals = $this->calculatePenjualanTotals();
         
         // Calculate other totals
         $totalPembelian = $this->pembelian()->sum('total_harga');
         $totalPemasukan = $this->pemasukan()->sum('jumlah');
         $totalPengeluaran = $this->pengeluaran()->sum('jumlah');
         
-        // Calculate arus kas (pemasukan - pengeluaran)
+        // Arus kas laporan (tanpa baris per-pesanan pemasukan_kasir)
         $arusKasPemasukan = $this->arusKas()
+            ->forLaporan()
             ->where('jenis', 'pemasukan')
             ->sum('jumlah');
         $arusKasPengeluaran = $this->arusKas()
+            ->forLaporan()
             ->where('jenis', 'pengeluaran')
             ->sum('jumlah');
         $totalArusKas = $arusKasPemasukan - $arusKasPengeluaran;
         
-        return [
-            'total_penjualan_cash' => $penjualanCash,
-            'total_penjualan_card' => $penjualanCard,
-            'total_penjualan_qris' => $penjualanQris,
-            'total_penjualan_other' => $penjualanOther,
-            'total_penjualan' => $totalPenjualan,
+        return array_merge($penjualanTotals, [
             'total_pembelian' => $totalPembelian,
             'total_pemasukan' => $totalPemasukan,
             'total_pengeluaran' => $totalPengeluaran,
             'total_arus_kas' => $totalArusKas,
-        ];
+        ]);
     }
 }
 

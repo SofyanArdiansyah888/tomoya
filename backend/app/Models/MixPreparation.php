@@ -31,5 +31,10 @@ class MixPreparation extends Model
     public function outputMaterial(): BelongsTo
     {
         return $this->belongsTo(Material::class, 'output_material_id');
+    } 
+
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by');
     }
 }

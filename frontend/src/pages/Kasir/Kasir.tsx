@@ -37,7 +37,6 @@ export const Kasir = () => {
   const [showCart, setShowCart] = useState(true) // Show cart by default
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'card' | 'qris' | 'other'>('cash')
   const [paymentStatus, setPaymentStatus] = useState<'bayar' | 'belum_bayar'>('bayar')
-  const [notes, setNotes] = useState('')
   const [clientName, setClientName] = useState('')
   const [qrisImage, setQrisImage] = useState<File | null>(null)
   const [amountPaid, setAmountPaid] = useState<number | ''>('')
@@ -77,6 +76,7 @@ export const Kasir = () => {
     produk: any
     coffee_strength?: 'strong' | 'medium' | 'soft' | 'other'
     coffee_grams?: number
+    catatan?: string
   }>>([])
 
 
@@ -157,8 +157,6 @@ export const Kasir = () => {
     //   return
     // }
 
-    // Get current stock
-    const availableStock = product.stockable ? getProductStock(productId) : Infinity
     const existingItem = localCart.find(item => item.produk_id === productId)
     const currentQuantity = existingItem ? itemIsCoffee(existingItem) ? 0 : existingItem.quantity : 0
     const newQuantity = currentQuantity + quantity
@@ -181,7 +179,7 @@ export const Kasir = () => {
       if (!isKopi && existingItem) {
         return prevCart.map(item =>
           item.produk_id === productId
-            ? { ...item, quantity: Math.min(newQuantity, availableStock) }
+            ? { ...item, quantity: newQuantity } 
             : item
         )
       }
@@ -189,7 +187,8 @@ export const Kasir = () => {
         line_id: generateLineId(),
         produk_id: productId,
         quantity: 1,//Math.min(quantity, availableStock),
-        produk: product
+        produk: product,
+        catatan: '',
       }]
     })
 
@@ -199,6 +198,12 @@ export const Kasir = () => {
   const handleCoffeeOptionChange = (lineId: string, strength: 'strong' | 'medium' | 'soft' | 'other', grams: number) => {
     setLocalCart(prevCart => prevCart.map(item =>
       item.line_id === lineId ? { ...item, coffee_strength: strength, coffee_grams: grams } : item
+    ))
+  }
+
+  const handleCatatanChange = (lineId: string, catatan: string) => {
+    setLocalCart(prevCart => prevCart.map(item =>
+      item.line_id === lineId ? { ...item, catatan } : item
     ))
   }
 
@@ -232,6 +237,25 @@ export const Kasir = () => {
     toast.success('Produk dihapus dari keranjang!')
   }
 
+  const LABEL_PRINT_DELAY_MS = 2000
+
+  const handlePrintReceiptAndLabel = () => {
+    printReceipt(
+      localCart,
+      total,
+      paymentMethod,
+      undefined,
+      undefined,
+      undefined,
+      clientName,
+      typeof amountPaid === 'number' ? amountPaid : undefined,
+      kembalian > 0 ? kembalian : undefined
+    )
+    setTimeout(() => {
+      printLabel(localCart, clientName)
+    }, LABEL_PRINT_DELAY_MS)
+  }
+
   // Helper function to get product stock from shop location
   const getProductStock = (productId: number): number => {
     const stock = productStocks?.find(s => s.produk_id === productId)
@@ -254,13 +278,12 @@ export const Kasir = () => {
       return
     }
 
-    // Validate payment amount for cash payment
-    if (paymentStatus === 'bayar') {
+    // Validate payment amount only for cash payment
+    if (paymentStatus === 'bayar' && paymentMethod === 'cash') {
       if (typeof amountPaid !== 'number' || amountPaid <= 0) {
         toast.error('Masukkan jumlah uang yang dibayar!')
         return
       }
-      // Use subtotal for validation (subtotal should equal total in this case)
       const amountToCheck = subtotal > 0 ? subtotal : total
       if (amountPaid < amountToCheck) {
         toast.error(`Uang dibayar (${formatPrice(amountPaid)}) tidak boleh kurang dari total (${formatPrice(amountToCheck)})!`)
@@ -284,7 +307,6 @@ export const Kasir = () => {
     formData.append('lokasi_id', DEFAULT_SHOP_LOCATION_ID.toString())
     formData.append('metode_pembayaran', paymentMethod)
     formData.append('status', paymentStatus)
-    if (notes) formData.append('catatan', notes)
     if (clientName) formData.append('nama_client', clientName)
     if (qrisImage && paymentMethod === 'qris') {
       formData.append('gambar_qris', qrisImage)
@@ -295,7 +317,8 @@ export const Kasir = () => {
       harga_satuan: item.produk && item.produk.harga ? item.produk.harga : 0,
       coffee_strength: item.coffee_strength,
       coffee_grams: item.coffee_grams,
-      target_material_id: resolveCoffeeMaterialId(item.produk)
+      target_material_id: resolveCoffeeMaterialId(item.produk),
+      catatan: item.catatan?.trim() || undefined,
     }))))
 
     // Prepare data in the format expected by CreateOrderRequest
@@ -303,7 +326,6 @@ export const Kasir = () => {
       lokasi_id: DEFAULT_SHOP_LOCATION_ID,
       metode_pembayaran: paymentMethod,
       status: paymentStatus,
-      catatan: notes || undefined,
       nama_client: clientName || undefined,
       gambar_qris: qrisImage && paymentMethod === 'qris' ? qrisImage : undefined,
       subtotal: subtotal,
@@ -315,18 +337,17 @@ export const Kasir = () => {
         harga_satuan: item.produk?.harga || 0,
         coffee_strength: item.coffee_strength,
         coffee_grams: item.coffee_grams,
-        target_material_id: resolveCoffeeMaterialId(item.produk)
+        target_material_id: resolveCoffeeMaterialId(item.produk),
+        catatan: item.catatan?.trim() || undefined,
       }))
     };
     
     createOrder.mutate(orderRequest, {
       onSuccess: () => {
         setLocalCart([]);
-        setNotes('');
         setClientName('');
         setQrisImage(null);
         setAmountPaid('');
-        setShowCart(false)
       }
     })
   }
@@ -648,32 +669,21 @@ export const Kasir = () => {
             kembalian={kembalian}
             paymentMethod={paymentMethod}
             paymentStatus={paymentStatus}
-            notes={notes}
             clientName={clientName}
             qrisImage={qrisImage}
             onClose={() => setShowCart(false)}
             onPaymentMethodChange={setPaymentMethod}
             onPaymentStatusChange={setPaymentStatus}
-            onNotesChange={setNotes}
             onClientNameChange={setClientName}
             onQrisImageChange={setQrisImage}
             onAmountPaidChange={setAmountPaid}
             onQuantityChange={handleQuantityChange}
             onRemoveItem={handleRemoveItem}
             onCoffeeOptionChange={handleCoffeeOptionChange}
+            onCatatanChange={handleCatatanChange}
             onCheckout={handleCheckout}
-            onPrintReceipt={() => printReceipt(
-              localCart,
-              total,
-              paymentMethod,
-              notes,
-              undefined,
-              undefined,
-              clientName,
-              typeof amountPaid === 'number' ? amountPaid : undefined,
-              kembalian > 0 ? kembalian : undefined
-            )}
-            onPrintLabel={() => printLabel(localCart, clientName, undefined, undefined)}
+            onPrintReceipt={handlePrintReceiptAndLabel}
+            onPrintLabel={() => printLabel(localCart, clientName)}
             getProductStock={getProductStock}
             isCheckoutPending={createOrder.isPending}
           />

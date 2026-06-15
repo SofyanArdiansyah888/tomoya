@@ -13,6 +13,51 @@ const formatOrderNumber = (date: Date): string => {
   return `${day}-${month}-${year}-${hours}${minutes}`
 }
 
+const formatCoffeeStrength = (
+  strength?: CartItemType['coffee_strength'],
+  grams?: number
+): string | null => {
+  if (!strength) return null
+
+  const labels: Record<string, string> = {
+    strong: 'STRONG',
+    medium: 'MEDIUM',
+    soft: 'SOFT',
+  }
+
+  if (strength === 'other') {
+    return typeof grams === 'number' && grams > 0 ? `CUSTOM ${grams}g` : 'CUSTOM'
+  }
+
+  return labels[strength] ?? strength.toUpperCase()
+}
+
+const buildLabelHtml = (
+  item: CartItemType,
+  orderNumber: string,
+  clientName?: string,
+): string => {
+  const productName = escapeHtml(item.produk?.nama || 'Produk')
+  const strengthLabel = formatCoffeeStrength(item.coffee_strength, item.coffee_grams)
+  const trimmedNotes = item.catatan?.trim()
+
+  return `
+    <div class="label-page">
+      <div class="label-content">
+        <div class="label-meta">${escapeHtml(orderNumber)}</div>
+
+        <div class="label-main">
+          <div class="label-name">${productName}</div>
+          ${strengthLabel ? `<div class="label-strength">· ${escapeHtml(strengthLabel)}</div>` : ''}
+        </div>
+
+        ${trimmedNotes ? `<div class="label-notes">${escapeHtml(trimmedNotes)}</div>` : ''}
+        ${clientName ? `<div class="label-client">${escapeHtml(clientName)}</div>` : ''}
+      </div>
+    </div>
+  `
+}
+
 /**
  * Print labels for cart items (32mm x 20mm)
  * Each item will be printed based on quantity
@@ -20,14 +65,13 @@ const formatOrderNumber = (date: Date): string => {
 export const printLabel = (
   cart: CartItemType[],
   clientName?: string,
-  noPesanan?: string,
-  orderDate?: string | Date
+  noPesanan?: string,   
+  orderDate?: string | Date,
 ) => {
   if (cart.length === 0) {
     return
   }
 
-  // Remove any existing print container and style
   const existingContainer = document.getElementById('label-print-temp')
   if (existingContainer) {
     existingContainer.remove()
@@ -37,27 +81,16 @@ export const printLabel = (
     existingStyle.remove()
   }
 
-  // Generate order number from date or use provided noPesanan
   const date = orderDate ? new Date(orderDate) : new Date()
   const orderNumber = noPesanan || formatOrderNumber(date)
 
-  // Build labels HTML content - one label per item quantity
-  const labelsContent = cart.map((item) => {
-    // Create multiple labels based on quantity
-    return Array.from({ length: item.quantity }, () => {
-      const productName = escapeHtml(item.produk?.nama || 'Produk')
-    
-      return `
-        <div class="label-page">
-          <div class="label-content">
-            <div class="label-order">No. Pesanan: ${orderNumber}</div>
-            ${clientName ? `<div class="label-client" style="margin-top:6px">${escapeHtml(clientName)}</div>` : ''}
-            <div class="label-name" style="text-transform:uppercase;margin-top:6px">${productName}</div>
-          </div>
-        </div>
-      `
-    }).join('')
-  }).join('')
+  const labelsContent = cart
+    .map((item) =>
+      Array.from({ length: item.quantity }, () =>
+        buildLabelHtml(item, orderNumber, clientName)
+      ).join('')
+    )
+    .join('')
 
   const labelPrintContent = `
     <!DOCTYPE html>
@@ -100,7 +133,7 @@ export const printLabel = (
           min-height: 20mm;
           padding: 0;
           margin: 0;
-          font-family: Arial, sans-serif;
+          font-family: Arial, Helvetica, sans-serif;
           color: #000;
           background: #fff;
         }
@@ -108,12 +141,8 @@ export const printLabel = (
           width: 32mm;
           height: 20mm;
           min-height: 20mm;
-          display: flex;
-          align-items: center;
-          justify-content: center;
           page-break-after: always;
           page-break-inside: avoid;
-          page-break-before: auto;
           box-sizing: border-box;
           border: 1px dashed #ccc;
           margin: 0;
@@ -123,57 +152,78 @@ export const printLabel = (
           height: 100%;
           display: flex;
           flex-direction: column;
-          align-items: center;
+          justify-content: flex-start;
+          align-items: stretch;
+          text-align: left;
+          padding: 0.8mm 1.1mm;
+          gap: 0.4mm;
+        }
+        .label-meta {
+          font-size: 5px;
+          font-weight: 700;
+          line-height: 1;
+          letter-spacing: 0.03em;
+          color: #000;
+          border-bottom: 0.4px solid #000;
+          padding-bottom: 0.45mm;
+          flex-shrink: 0;
+        }
+        .label-main {
+          flex: 1;
+          display: flex;
+          flex-direction: column;
           justify-content: center;
-          text-align: center;
-          padding: 0.5mm 1mm;
-          box-sizing: border-box;
+          gap: 0.35mm;
+          min-height: 0;
         }
         .label-name {
           font-size: 8px;
-          font-weight: bold;
-          line-height: 1.1;
+          font-weight: 800;
+          line-height: 1.05;
+          text-transform: uppercase;
           word-wrap: break-word;
-          max-width: 100%;
           overflow: hidden;
-          text-overflow: ellipsis;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+        }
+        .label-strength {
+          font-size: 4.5px;
+          font-weight: 600;
+          line-height: 1;
+          letter-spacing: 0.04em;
+          text-transform: uppercase;
+          align-self: flex-start;
+          padding: 0;
+          border: none;
+          border-radius: 0;
+          background: transparent;
+          color: #333;
+        }
+        .label-notes {
+          font-size: 5.5px;
+          font-weight: 600;
+          font-style: italic;
+          line-height: 1.1;
+          color: #000;
+          overflow: hidden;
           display: -webkit-box;
           -webkit-line-clamp: 2;
           -webkit-box-orient: vertical;
           flex-shrink: 0;
-          margin-bottom: 0.3mm;
-        }
-        .label-code {
-          font-size: 6px;
-          font-weight: bold;
-          color: black;
-          line-height: 1;
-          flex-shrink: 0;
-          margin-bottom: 0.2mm;
-        }
-        .label-price {
-          font-size: 9px;
-          font-weight: bold;
-          color: black;
-          flex-shrink: 0;
-          margin-top: 0.2mm;
         }
         .label-client {
-          font-weight: bold;
-          font-size: 7px;
-          color: black;
-          line-height: 1;
-          flex-shrink: 0;
-          margin-bottom: 0.2mm;
-          text-transform: uppercase;
-        }
-        .label-order {
-          font-weight: bold;
           font-size: 6px;
-          color: black;
+          font-weight: 700;
           line-height: 1;
+          text-transform: uppercase;
+          color: #000;
+          border-top: 0.3px solid #999;
+          padding-top: 0.35mm;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
           flex-shrink: 0;
-          margin-bottom: 0.1mm;
         }
       </style>
     </head>
@@ -183,7 +233,6 @@ export const printLabel = (
     </html>
   `
 
-  // Create a new window for printing
   const printWindow = window.open('', '_blank', 'width=800,height=600')
   let hasPrinted = false
 
@@ -195,7 +244,6 @@ export const printLabel = (
   }
 
   if (!printWindow) {
-    // Fallback: if popup is blocked, use iframe approach
     const iframe = document.createElement('iframe')
     iframe.id = 'label-print-iframe'
     iframe.style.position = 'fixed'
@@ -223,7 +271,6 @@ export const printLabel = (
         }, 500)
       }
 
-      // Fallback if onload doesn't fire
       setTimeout(() => {
         if (iframe.contentWindow && !hasPrinted) {
           executePrint(iframe.contentWindow)
@@ -236,17 +283,14 @@ export const printLabel = (
     return
   }
 
-  // Write content to new window
   printWindow.document.open()
   printWindow.document.write(labelPrintContent)
   printWindow.document.close()
 
-  // Wait for content to load, then print
   printWindow.onload = () => {
     setTimeout(() => {
       if (!hasPrinted) {
         executePrint(printWindow)
-        // Don't close immediately, let user see preview
         setTimeout(() => {
           if (!printWindow.closed) {
             printWindow.close()
@@ -256,7 +300,6 @@ export const printLabel = (
     }, 500)
   }
 
-  // Fallback if onload doesn't fire
   setTimeout(() => {
     if (printWindow && !printWindow.closed && !hasPrinted) {
       executePrint(printWindow)
@@ -268,4 +311,3 @@ export const printLabel = (
     }
   }, 1000)
 }
-

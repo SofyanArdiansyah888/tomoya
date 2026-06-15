@@ -12,11 +12,20 @@ interface TutupKasirModalProps {
   isOpen: boolean
   onClose: () => void
   shift: ShiftKasir | null
-  onSubmit: (data: TutupKasirRequest) => Promise<void>
+  onSubmit?: (data: TutupKasirRequest) => Promise<void>
   isLoading?: boolean
+  mode?: 'close' | 'view'
 }
 
-export const TutupKasirModal = ({ isOpen, onClose, shift, onSubmit, isLoading: externalIsLoading = false }: TutupKasirModalProps) => {
+export const TutupKasirModal = ({
+  isOpen,
+  onClose,
+  shift,
+  onSubmit,
+  isLoading: externalIsLoading = false,
+  mode = 'close',
+}: TutupKasirModalProps) => {
+  const isViewMode = mode === 'view'
   const [saldoAkhir, setSaldoAkhir] = useState(0)
   const [catatan, setCatatan] = useState('')
   const [error, setError] = useState('')
@@ -47,7 +56,8 @@ export const TutupKasirModal = ({ isOpen, onClose, shift, onSubmit, isLoading: e
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    
+    if (isViewMode || !onSubmit) return
+
     if (saldoAkhir < 0) {
       setError('Saldo akhir tidak boleh negatif')
       return
@@ -66,77 +76,74 @@ export const TutupKasirModal = ({ isOpen, onClose, shift, onSubmit, isLoading: e
       setIsSubmitting(false)
     }
   }
-
-  // Calculate expected saldo akhir - sesuai dengan logika backend
-  // Total cash masuk: penjualan cash + pemasukan cash + arus kas pemasukan cash
-  const totalPemasukanCash = (displayShift.pemasukan || []).reduce((sum, pemasukan) => {
+ 
+  // Rincian cash dari backend (tanpa double-count arus_kas mirror)
+  const cashFlow = displayShift.cash_flow
+  const penjualanCash = cashFlow?.penjualan_cash ?? displayShift.total_penjualan_cash
+  const totalPemasukanCash = cashFlow?.pemasukan_cash ?? (displayShift.pemasukan || []).reduce((sum, pemasukan) => {
     if (pemasukan.metode_pembayaran === 'cash') {
-      return sum + (pemasukan.uang_dibayar ?? pemasukan.jumlah)
+      return sum + pemasukan.jumlah
     }
     return sum
   }, 0)
+  const totalCashMasuk = cashFlow?.total_cash_masuk ?? (penjualanCash + totalPemasukanCash)
 
-  const totalArusKasPemasukanCash = (displayShift.arus_kas || []).reduce((sum, arusKas) => {
-    if (arusKas.jenis === 'pemasukan' && arusKas.metode_pembayaran === 'cash') {
-      return sum + (arusKas.uang_dibayar ?? arusKas.jumlah)
-    }
-    return sum
-  }, 0)
-
-  const totalCashMasuk = displayShift.total_penjualan_cash + totalPemasukanCash + totalArusKasPemasukanCash
-
-  // Total cash keluar: pengeluaran cash + pembelian cash + arus kas pengeluaran cash
-  const totalPengeluaranCash = (displayShift.pengeluaran || []).reduce((sum, pengeluaran) => {
+  const totalPengeluaranCash = cashFlow?.pengeluaran_cash ?? (displayShift.pengeluaran || []).reduce((sum, pengeluaran) => {
     if (pengeluaran.metode_pembayaran === 'cash') {
       return sum + pengeluaran.jumlah
     }
     return sum
   }, 0)
 
-  const totalPembelianCash = (displayShift.pembelian || []).reduce((sum, pembelian) => {
+  const totalPembelianCash = cashFlow?.pembelian_cash ?? (displayShift.pembelian || []).reduce((sum, pembelian) => {
     if (pembelian.metode_pembayaran === 'cash') {
       return sum + pembelian.total_harga
     }
     return sum
   }, 0)
 
-  const totalArusKasPengeluaranCash = (displayShift.arus_kas || []).reduce((sum, arusKas) => {
-    if (arusKas.jenis === 'pengeluaran' && arusKas.metode_pembayaran === 'cash') {
-      return sum + arusKas.jumlah
-    }
-    return sum
-  }, 0)
+  const totalCashKeluar = cashFlow?.total_cash_keluar ?? (totalPengeluaranCash + totalPembelianCash)
 
-  const totalCashKeluar = totalPengeluaranCash + totalPembelianCash + totalArusKasPengeluaranCash
+  const expectedSaldoAkhir = cashFlow?.expected_saldo_akhir ?? (displayShift.saldo_awal + totalCashMasuk - totalCashKeluar)
+  const selisih = isViewMode
+    ? (displayShift.selisih ?? 0)
+    : (saldoAkhir > 0 ? saldoAkhir - expectedSaldoAkhir : 0)
+  const displayedSaldoAkhir = isViewMode ? displayShift.saldo_akhir : (saldoAkhir > 0 ? saldoAkhir : null)
 
-  // Expected saldo akhir = saldo awal + cash masuk - cash keluar
-  const expectedSaldoAkhir = displayShift.saldo_awal + totalCashMasuk - totalCashKeluar
-  const selisih = saldoAkhir > 0 ? saldoAkhir - expectedSaldoAkhir : 0
+  const recapContent = (
+    isLoadingDetail ? (
+      <div className="text-center py-8">Memuat rekapitulasi...</div>
+    ) : (
+      <div className="bg-gray-50 p-4 rounded-lg space-y-3">
+        <h3 className="font-semibold text-lg mb-4">Rekapitulasi Shift</h3>
 
-  return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Tutup Kasir" size="xl">
-      <form onSubmit={handleSubmit} className="space-y-6">
-        {isLoadingDetail ? (
-          <div className="text-center py-8">Memuat rekapitulasi...</div>
-        ) : (
-          <>
-            {/* Rekapitulasi */}
-            <div className="bg-gray-50 p-4 rounded-lg space-y-3">
-              <h3 className="font-semibold text-lg mb-4">Rekapitulasi Shift</h3>
-              
-              {/* Saldo */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <p className="text-sm text-gray-600">Saldo Awal</p>
-                  <p className="text-lg font-semibold">{formatPrice(displayShift.saldo_awal)}</p>
-                </div>
-                <div>
-                  <p className="text-sm text-gray-600">Saldo Akhir</p>
-                  <p className="text-lg font-semibold text-blue-600">
-                    {saldoAkhir > 0 ? formatPrice(saldoAkhir) : '-'}
-                  </p>
-                </div>
-              </div>
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="text-gray-600">No. Shift</p>
+            <p className="font-semibold">{displayShift.no_shift_kasir}</p>
+          </div>
+          <div>
+            <p className="text-gray-600">Kasir</p>
+            <p className="font-semibold">{displayShift.user?.name || '-'}</p>
+          </div>
+          <div>
+            <p className="text-gray-600">Status</p>
+            <p className="font-semibold">{displayShift.status === 'open' ? 'Aktif' : 'Ditutup'}</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <p className="text-sm text-gray-600">Saldo Awal</p>
+            <p className="text-lg font-semibold">{formatPrice(displayShift.saldo_awal)}</p>
+          </div>
+          <div>
+            <p className="text-sm text-gray-600">Saldo Akhir</p>
+            <p className="text-lg font-semibold text-blue-600">
+              {displayedSaldoAkhir != null ? formatPrice(displayedSaldoAkhir) : '-'}
+            </p>
+          </div>
+        </div>
 
               {/* Penjualan per Metode */}
               <div className="border-t pt-3">
@@ -174,18 +181,12 @@ export const TutupKasirModal = ({ isOpen, onClose, shift, onSubmit, isLoading: e
                     <div className="space-y-1 text-xs">
                       <div className="flex justify-between">
                         <span className="text-gray-600">Penjualan Cash:</span>
-                        <span className="font-medium">{formatPrice(displayShift.total_penjualan_cash)}</span>
+                        <span className="font-medium">{formatPrice(penjualanCash)}</span>
                       </div>
                       {totalPemasukanCash > 0 && (
                         <div className="flex justify-between">
                           <span className="text-gray-600">Pemasukan Cash:</span>
                           <span className="font-medium">{formatPrice(totalPemasukanCash)}</span>
-                        </div>
-                      )}
-                      {totalArusKasPemasukanCash > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Arus Kas Pemasukan Cash:</span>
-                          <span className="font-medium">{formatPrice(totalArusKasPemasukanCash)}</span>
                         </div>
                       )}
                       <div className="flex justify-between pt-1 border-t border-green-200">
@@ -207,12 +208,6 @@ export const TutupKasirModal = ({ isOpen, onClose, shift, onSubmit, isLoading: e
                         <div className="flex justify-between">
                           <span className="text-gray-600">Pembelian Cash:</span>
                           <span className="font-medium">{formatPrice(totalPembelianCash)}</span>
-                        </div>
-                      )}
-                      {totalArusKasPengeluaranCash > 0 && (
-                        <div className="flex justify-between">
-                          <span className="text-gray-600">Arus Kas Pengeluaran Cash:</span>
-                          <span className="font-medium">{formatPrice(totalArusKasPengeluaranCash)}</span>
                         </div>
                       )}
                       <div className="flex justify-between pt-1 border-t border-red-200">
@@ -242,64 +237,90 @@ export const TutupKasirModal = ({ isOpen, onClose, shift, onSubmit, isLoading: e
                   <span className="text-sm font-semibold text-blue-700">Saldo Akhir yang Diharapkan:</span>
                   <span className="text-lg font-bold text-blue-700">{formatPrice(expectedSaldoAkhir)}</span>
                 </div>
-                {saldoAkhir > 0 && (
-                  <>
-                    <div className="flex justify-between items-center mt-3 pt-2 border-t">
-                      <span className="text-sm font-semibold text-gray-700">Selisih (perkiraan):</span>
-                      <span className={`text-lg font-semibold ${selisih >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                        {selisih >= 0 ? '+' : ''}{formatPrice(selisih)}
-                      </span>
-                    </div>
-                    <p className="text-xs text-gray-500 mt-1">
-                      * Selisih final akan dihitung setelah tutup kasir
-                    </p>
-                  </>
+                {(isViewMode ? displayShift.selisih != null : saldoAkhir > 0) && (
+                  <div className="flex justify-between items-center mt-3 pt-2 border-t">
+                    <span className="text-sm font-semibold text-gray-700">
+                      {isViewMode ? 'Selisih:' : 'Selisih (perkiraan):'}
+                    </span>
+                    <span className={`text-lg font-semibold ${selisih >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                      {selisih >= 0 ? '+' : ''}{formatPrice(selisih)}
+                    </span>
+                  </div>
+                )}
+                {!isViewMode && saldoAkhir > 0 && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    * Selisih final akan dihitung setelah tutup kasir
+                  </p>
                 )}
               </div>
+      </div>
+    )
+  )
+
+  return (
+    <Modal
+      isOpen={isOpen}
+      onClose={onClose}
+      title={isViewMode ? 'Detail Shift' : 'Tutup Kasir'}
+      size="xl"
+    >
+      {isViewMode ? (
+        <div className="space-y-6">
+          {recapContent}
+          {displayShift.catatan && (
+            <div>
+              <p className="text-sm font-medium text-gray-700 mb-1">Catatan</p>
+              <p className="text-sm text-gray-600 bg-gray-50 p-3 rounded-lg">{displayShift.catatan}</p>
             </div>
-          </>
-        )}
-
-        {/* Input Saldo Akhir */}
-        <div>
-          <Label htmlFor="saldo_akhir">Saldo Akhir *</Label>
-          <CurrencyInput
-            value={saldoAkhir}
-            onChange={setSaldoAkhir}
-            placeholder="Masukkan saldo akhir"
-          />
-          {error && (
-            <p className="mt-1 text-sm text-red-600">{error}</p>
           )}
-          {saldoAkhir > 0 && (
-            <p className="mt-1 text-sm text-gray-500">
-              Saldo yang diharapkan: {formatPrice(expectedSaldoAkhir)}
-            </p>
-          )}
+          <div className="flex justify-end pt-4">
+            <Button type="button" onClick={onClose}>
+              Tutup
+            </Button>
+          </div>
         </div>
+      ) : (
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {recapContent}
 
-        {/* Catatan */}
-        <div>
-          <Label htmlFor="catatan">Catatan</Label>
-          <Textarea
-            id="catatan"
-            value={catatan}
-            onChange={(e) => setCatatan(e.target.value)}
-            placeholder="Catatan (opsional)"
-            rows={3}
-          />
-        </div>
+          <div>
+            <Label htmlFor="saldo_akhir">Saldo Akhir *</Label>
+            <CurrencyInput
+              value={saldoAkhir}
+              onChange={setSaldoAkhir}
+              placeholder="Masukkan saldo akhir"
+            />
+            {error && (
+              <p className="mt-1 text-sm text-red-600">{error}</p>
+            )}
+            {saldoAkhir > 0 && (
+              <p className="mt-1 text-sm text-gray-500">
+                Saldo yang diharapkan: {formatPrice(expectedSaldoAkhir)}
+              </p>
+            )}
+          </div>
 
-        {/* Action Buttons */}
-        <div className="flex justify-end gap-2 pt-4">
-          <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
-            Batal
-          </Button>
-          <Button type="submit" disabled={isLoading || saldoAkhir <= 0}>
-            {isLoading ? 'Menutup...' : 'Tutup Kasir'}
-          </Button>
-        </div>
-      </form>
+          <div>
+            <Label htmlFor="catatan">Catatan</Label>
+            <Textarea
+              id="catatan"
+              value={catatan}
+              onChange={(e) => setCatatan(e.target.value)}
+              placeholder="Catatan (opsional)"
+              rows={3}
+            />
+          </div>
+
+          <div className="flex justify-end gap-2 pt-4">
+            <Button type="button" variant="outline" onClick={onClose} disabled={isLoading}>
+              Batal
+            </Button>
+            <Button type="submit" disabled={isLoading || saldoAkhir <= 0}>
+              {isLoading ? 'Menutup...' : 'Tutup Kasir'}
+            </Button>
+          </div>
+        </form>
+      )}
     </Modal>
   )
 }

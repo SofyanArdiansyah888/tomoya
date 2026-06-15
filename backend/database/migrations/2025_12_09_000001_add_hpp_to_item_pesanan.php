@@ -11,9 +11,9 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::table('item_pesanan', function (Blueprint $table) {
-            $table->decimal('hpp', 12, 2)->default(0)->after('harga');
-        });
+        // Schema::table('item_pesanan', function (Blueprint $table) {
+        //     $table->decimal('hpp', 12, 2)->default(0)->after('harga');
+        // });
     }
 
     /**
@@ -21,9 +21,9 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::table('item_pesanan', function (Blueprint $table) {
-            $table->dropColumn('hpp');
-        });
+        // Schema::table('item_pesanan', function (Blueprint $table) {
+        //     $table->dropColumn('hpp');
+        // });
     }
 };
 

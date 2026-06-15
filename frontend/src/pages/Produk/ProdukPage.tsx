@@ -72,7 +72,15 @@ export const ProdukPage = () => {
       toast.success('Produk berhasil dihapus!')
     },
     onError: (error: any) => {
-      toast.error(error.response?.data?.message || 'Gagal menghapus produk')
+      const apiMessage = error.response?.data?.message
+      const isSystemError = typeof apiMessage === 'string' && (
+        apiMessage.includes('SQLSTATE') || apiMessage.includes('Integrity constraint')
+      )
+      toast.error(
+        isSystemError
+          ? 'Produk tidak dapat dihapus karena masih digunakan di data lain.'
+          : (apiMessage || 'Gagal menghapus produk')
+      )
     },
   })
 

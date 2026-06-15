@@ -125,7 +125,7 @@ export const MixPreparation = () => {
           <CardContent>
             {detail ? (
               <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                   <div className="p-4 rounded-lg border bg-white">
                     <div className="text-xs text-gray-500">Tanggal</div>
                     <div className="text-sm font-semibold text-gray-900">{new Date(detail.header.tanggal).toLocaleString('id-ID')}</div>
@@ -137,6 +137,10 @@ export const MixPreparation = () => {
                   <div className="p-4 rounded-lg border bg-white">
                     <div className="text-xs text-gray-500">Keterangan</div>
                     <div className="text-sm font-semibold text-gray-900">{detail.header.keterangan || '-'}</div>
+                  </div>
+                  <div className="p-4 rounded-lg border bg-white">
+                    <div className="text-xs text-gray-500">User</div>
+                    <div className="text-sm font-semibold text-gray-900">{detail.header.user?.name || '-'}</div>
                   </div>
                 </div>
 

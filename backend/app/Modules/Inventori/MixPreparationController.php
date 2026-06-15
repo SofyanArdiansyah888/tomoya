@@ -16,7 +16,7 @@ class MixPreparationController extends Controller
 {
     public function index(Request $request): JsonResponse
     {
-        $query = MixPreparation::with(['lokasi', 'outputMaterial'])
+        $query = MixPreparation::with(['lokasi', 'outputMaterial', 'user'])
             ->orderBy('tanggal', 'desc')
             ->orderBy('id', 'desc');
 
@@ -39,9 +39,9 @@ class MixPreparationController extends Controller
     }
 
     public function show(int $id): JsonResponse
-    {
-        $mp = MixPreparation::with(['lokasi', 'outputMaterial'])->findOrFail($id);
-        $items = ItemLokasi::with(['material'])
+    { 
+        $mp = MixPreparation::with(['lokasi', 'outputMaterial', 'user'])->findOrFail($id);
+        $items = ItemLokasi::with(['material', 'user'])
             ->where('reference_type', MixPreparation::class)
             ->where('reference_id', $mp->id)
             ->orderBy('tanggal', 'asc')

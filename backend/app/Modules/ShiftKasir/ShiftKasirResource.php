@@ -14,22 +14,34 @@ class ShiftKasirResource extends JsonResource
      */
     public function toArray(Request $request): array
     {
+        $totals = $this->resource->calculateTotals();
+        $cashFlow = $this->resource->calculateCashFlow();
+
         return [
             'id' => $this->id,
             'user_id' => $this->user_id,
             'lokasi_id' => $this->lokasi_id,
             'no_shift_kasir' => $this->no_shift_kasir,
             'saldo_awal' => (float) $this->saldo_awal,
-            'saldo_akhir' => $this->saldo_akhir ? (float) $this->saldo_akhir : null,
-            'total_penjualan_cash' => (float) $this->total_penjualan_cash,
-            'total_penjualan_card' => (float) $this->total_penjualan_card,
-            'total_penjualan_qris' => (float) $this->total_penjualan_qris,
-            'total_penjualan_other' => (float) $this->total_penjualan_other,
-            'total_penjualan' => (float) $this->total_penjualan,
-            'total_pembelian' => (float) $this->total_pembelian,
-            'total_pemasukan' => (float) $this->total_pemasukan,
-            'total_pengeluaran' => (float) $this->total_pengeluaran,
-            'total_arus_kas' => (float) $this->total_arus_kas,
+            'saldo_akhir' => $this->saldo_akhir ? (float) $this->saldo_akhir : null, 
+            'total_penjualan_cash' => (float) $totals['total_penjualan_cash'],
+            'total_penjualan_card' => (float) $totals['total_penjualan_card'],
+            'total_penjualan_qris' => (float) $totals['total_penjualan_qris'], 
+            'total_penjualan_other' => (float) $totals['total_penjualan_other'],
+            'total_penjualan' => (float) $totals['total_penjualan'],
+            'total_pembelian' => (float) $totals['total_pembelian'],
+            'total_pemasukan' => (float) $totals['total_pemasukan'],
+            'total_pengeluaran' => (float) $totals['total_pengeluaran'],
+            'total_arus_kas' => (float) $totals['total_arus_kas'],
+            'cash_flow' => [ 
+                'penjualan_cash' => $cashFlow['penjualan_cash'],
+                'pemasukan_cash' => $cashFlow['pemasukan_cash'],
+                'total_cash_masuk' => $cashFlow['total_cash_masuk'],
+                'pengeluaran_cash' => $cashFlow['pengeluaran_cash'],
+                'pembelian_cash' => $cashFlow['pembelian_cash'],
+                'total_cash_keluar' => $cashFlow['total_cash_keluar'],
+                'expected_saldo_akhir' => $cashFlow['expected_saldo_akhir'],
+            ],
             'selisih' => $this->selisih ? (float) $this->selisih : null,
             'tanggal_buka' => $this->tanggal_buka->format('Y-m-d H:i:s'),
             'tanggal_tutup' => $this->tanggal_tutup ? $this->tanggal_tutup->format('Y-m-d H:i:s') : null,
@@ -107,12 +119,8 @@ class ShiftKasirResource extends JsonResource
                         'tanggal' => $arusKas->tanggal->format('Y-m-d'),
                     ];
                 });
-            }),
-            'has_input_pemasukan' => (bool) $this->arusKas()
-                ->where('jenis', 'pemasukan')
-                ->where('kategori', 'pemasukan_kasir')
-                ->where('sub_kategori', 'penjualan_kasir')
-                ->exists(),
+            }), 
+            'has_input_pemasukan' => (bool) $this->closingArusKasQuery()->exists(),
         ];
     }
 }

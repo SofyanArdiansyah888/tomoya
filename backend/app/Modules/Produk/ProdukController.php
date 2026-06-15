@@ -8,6 +8,9 @@ use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Modules\Produk\ProdukRequest;
 use App\Http\Resources\ApiResource;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
+use Throwable;
 
 class ProdukController extends Controller
 {
@@ -106,8 +109,68 @@ class ProdukController extends Controller
     public function destroy(string $id): JsonResponse
     {
         $produk = Produk::findOrFail($id);
-        $produk->delete();
-        return response()->json(null, 204);
+        $produkId = (int) $produk->id;
+ 
+        if ($message = $this->buildItemPesananBlockMessage($produkId)) {
+            return response()->json(['message' => $message], 422);
+        }
+
+        try {
+            DB::transaction(function () use ($produkId) {
+                DB::table('produk_lokasi')->where('produk_id', $produkId)->delete();
+                // Bersihkan item pesanan yatim (pesanan sudah tidak ada)
+                DB::table('item_pesanan')->where('produk_id', $produkId)->delete();
+                DB::table('produk')->where('id', $produkId)->delete();
+            });
+
+            return response()->json(null, 204);
+        } catch (Throwable $e) {
+            return response()->json([
+                'message' => $this->resolveDeleteErrorMessage($e, $produkId),
+            ], 422);
+        }
+    }
+
+    /**
+     * Blokir hapus hanya jika produk masih dipakai di pesanan yang masih ada.
+     */
+    private function buildItemPesananBlockMessage(int $produkId): ?string
+    {
+        $linkedPesanan = DB::table('item_pesanan')
+            ->join('pesanan', 'pesanan.id', '=', 'item_pesanan.pesanan_id')
+            ->where('item_pesanan.produk_id', $produkId)
+            ->select('pesanan.no_pesanan')
+            ->distinct()
+            ->pluck('no_pesanan')
+            ->filter()
+            ->values();
+
+        if ($linkedPesanan->isEmpty()) {
+            return null;
+        }
+
+        $itemCount = DB::table('item_pesanan')
+            ->join('pesanan', 'pesanan.id', '=', 'item_pesanan.pesanan_id')
+            ->where('item_pesanan.produk_id', $produkId)
+            ->count();
+
+        $displayNos = $linkedPesanan->take(5)->implode(', ');
+        $message = "Produk tidak dapat dihapus karena masih digunakan dalam {$itemCount} item pesanan ({$displayNos}";
+
+        if ($linkedPesanan->count() > 5) {
+            $message .= ', dan ' . ($linkedPesanan->count() - 5) . ' pesanan lainnya';
+        }
+
+        return $message . ').';
+    }
+
+    private function resolveDeleteErrorMessage(Throwable $e, int $produkId): string
+    {
+        if ($message = $this->buildItemPesananBlockMessage($produkId)) {
+            return $message;
+        }
+
+        return 'Produk tidak dapat dihapus karena masih digunakan di data lain.';
     }
 
     /**

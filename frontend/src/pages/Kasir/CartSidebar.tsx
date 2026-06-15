@@ -11,6 +11,7 @@ interface CartItemType {
   produk: any
   coffee_strength?: 'strong' | 'medium' | 'soft' | 'other'
   coffee_grams?: number
+  catatan?: string
 }
 
 interface CartSidebarProps {
@@ -21,19 +22,18 @@ interface CartSidebarProps {
   kembalian: number
   paymentMethod: 'cash' | 'card' | 'qris' | 'other'
   paymentStatus: 'bayar' | 'belum_bayar'
-  notes: string
   clientName: string
   qrisImage: File | null
   onClose: () => void
   onPaymentMethodChange: (method: 'cash' | 'card' | 'qris' | 'other') => void
   onPaymentStatusChange: (status: 'bayar' | 'belum_bayar') => void
-  onNotesChange: (notes: string) => void
   onClientNameChange: (name: string) => void
   onQrisImageChange: (file: File | null) => void
   onAmountPaidChange: (amount: number | '') => void
   onQuantityChange: (lineId: string, newQuantity: number) => void
   onRemoveItem?: (lineId: string) => void
   onCoffeeOptionChange: (lineId: string, strength: 'strong' | 'medium' | 'soft' | 'other', grams: number) => void
+  onCatatanChange: (lineId: string, catatan: string) => void
   onCheckout: () => void
   onPrintReceipt: () => void
   onPrintLabel: () => void
@@ -48,19 +48,18 @@ export const CartSidebar = ({
   kembalian,
   paymentMethod,
   paymentStatus,
-  notes,
   clientName,
   qrisImage,
   onClose,
   onPaymentMethodChange,
   onPaymentStatusChange,
-  onNotesChange,
   onClientNameChange,
   onQrisImageChange,
   onAmountPaidChange,
   onQuantityChange,
   onRemoveItem,
   onCoffeeOptionChange,
+  onCatatanChange,
   onCheckout,
   onPrintReceipt,
   onPrintLabel,
@@ -92,6 +91,7 @@ export const CartSidebar = ({
                   onQuantityChange={onQuantityChange}
                   onRemove={onRemoveItem}
                   onCoffeeOptionChange={onCoffeeOptionChange}
+                  onCatatanChange={onCatatanChange}
                 />
               ))}
             </div>
@@ -170,20 +170,6 @@ export const CartSidebar = ({
                   )}
                 </div>
               )}
-
-              {/* Notes */}
-              <div className="mb-4">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Catatan (Opsional)
-                </label>
-                <textarea
-                  value={notes}
-                  onChange={(e) => onNotesChange(e.target.value)}
-                  placeholder="Catatan untuk pesanan..."
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                  rows={2}
-                />
-              </div>
 
               {/* Total */}
               <div className="flex justify-between items-center mb-4 pb-3 border-b">

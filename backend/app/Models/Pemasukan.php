@@ -22,9 +22,6 @@ class Pemasukan extends Model
         'nama',
         'deskripsi',
         'jumlah',
-        'subtotal',
-        'uang_dibayar',
-        'kembalian',
         'tanggal',
         'metode_pembayaran',
         'referensi',
@@ -35,9 +32,6 @@ class Pemasukan extends Model
     protected $casts = [
         'tanggal' => 'date',
         'jumlah' => 'decimal:2',
-        'subtotal' => 'decimal:2',
-        'uang_dibayar' => 'decimal:2',
-        'kembalian' => 'decimal:2',
         'is_active' => 'boolean',
     ];
 

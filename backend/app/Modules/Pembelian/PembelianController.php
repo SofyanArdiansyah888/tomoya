@@ -179,8 +179,8 @@ class PembelianController extends Controller
                 'referensi_id' => $pembelian->id,
                 'referensi_type' => Pembelian::class,
                 'metode_pembayaran' => $metodePembayaranArusKas,
-                'status' => 'confirmed'
-            ]);
+                'status' => true,
+            ]); 
 
             DB::commit();
 
@@ -327,8 +327,8 @@ class PembelianController extends Controller
                     'tanggal' => $pembelian->tanggal_pembelian,
                     'referensi_id' => $pembelian->id,
                     'referensi_type' => Pembelian::class,
-                    'metode_pembayaran' => $metodePembayaranArusKas,
-                    'status' => 'confirmed'
+                    'metode_pembayaran' => $metodePembayaranArusKas, 
+                    'status' => true,
                 ]);
             }
 
