@@ -109,7 +109,7 @@ export const PembelianPage = () => {
     lokasi_id: number
     tanggal_pembelian: string
     catatan?: string
-    metode_pembayaran: 'cash' | 'transfer' | 'credit'
+    metode_pembayaran: 'cash' | 'transfer'
     items: Array<{
       material_id: number
       quantity: number
@@ -345,8 +345,7 @@ export const PembelianPage = () => {
                   <span>Metode Pembayaran</span>
                 </div>
                 <p className="text-lg font-medium text-gray-900">
-                  {viewingPurchase.metode_pembayaran === 'cash' ? 'Tunai' : 
-                   viewingPurchase.metode_pembayaran === 'transfer' ? 'Transfer' : 'Kredit'}
+                  {viewingPurchase.metode_pembayaran === 'cash' ? 'Brankas' : 'Rekening'}
                 </p>
               </div>
               <div className="space-y-1">

@@ -3,7 +3,7 @@
 namespace App\Modules\Pemasukan;
 
 use App\Models\Pemasukan;
-use App\Models\ArusKas;
+use App\Models\MasterKas;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Modules\Pemasukan\PemasukanRequest;
@@ -106,27 +106,24 @@ class PemasukanController extends Controller
             }
 
             $pemasukan = Pemasukan::create($dataToCreate);
+ 
+            // Map kategori pemasukan to kategori master kas
+            $kategoriMasterKas = $this->mapKategoriPemasukanToMasterKas($pemasukan->kategori);
 
-            // Map kategori pemasukan to kategori arus kas
-            $kategoriArusKas = $this->mapKategoriPemasukanToArusKas($pemasukan->kategori);
-
-            // Map metode_pembayaran: kredit -> kredit (already correct)
-            $metodePembayaranArusKas = $pemasukan->metode_pembayaran;
-
-            // Create arus kas (pemasukan)
-            ArusKas::create([
+            // Create master kas (pemasukan)
+            MasterKas::create([
                 'user_id' => $pemasukan->user_id,
                 'lokasi_id' => $lokasiId,
                 'shift_id' => $shiftAktif ? $shiftAktif->id : null,
                 'jenis' => 'pemasukan',
-                'kategori' => $kategoriArusKas,
-                'sub_kategori' => $pemasukan->sub_kategori,
+                'kategori' => $kategoriMasterKas,
+                'sub_kategori' => null,
                 'jumlah' => $pemasukan->jumlah,
                 'deskripsi' => $pemasukan->nama . ($pemasukan->deskripsi ? ': ' . $pemasukan->deskripsi : ''),
                 'tanggal' => $pemasukan->tanggal,
                 'referensi_id' => $pemasukan->id,
                 'referensi_type' => Pemasukan::class,
-                'metode_pembayaran' => $metodePembayaranArusKas,
+                'metode_pembayaran' => $pemasukan->metode_pembayaran,
                 'status' => true,
             ]);
  
@@ -147,7 +144,7 @@ class PemasukanController extends Controller
     /**
      * Map kategori pemasukan to kategori arus kas
      */
-    private function mapKategoriPemasukanToArusKas(string $kategoriPemasukan): string
+    private function mapKategoriPemasukanToMasterKas(string $kategoriPemasukan): string
     {
         // Kategori pemasukan sekarang sudah sama dengan kategori arus kas
         $mapping = [
@@ -193,37 +190,36 @@ class PemasukanController extends Controller
 
             $lokasiId = $pemasukan->lokasi_id;
 
-            // Update arus kas if exists
-            $arusKas = ArusKas::where('referensi_type', Pemasukan::class)
+            // Update master kas if exists
+            $masterKas = MasterKas::where('referensi_type', Pemasukan::class)
                 ->where('referensi_id', $pemasukan->id)
                 ->first();
 
-            if ($arusKas) {
-                $kategoriArusKas = $this->mapKategoriPemasukanToArusKas($pemasukan->kategori);
+            if ($masterKas) {
+                $kategoriMasterKas = $this->mapKategoriPemasukanToMasterKas($pemasukan->kategori);
 
-                $arusKas->update([
+                $masterKas->update([
                     'lokasi_id' => $lokasiId,
-                    'kategori' => $kategoriArusKas,
-                    'sub_kategori' => $pemasukan->sub_kategori,
+                    'kategori' => $kategoriMasterKas,
+                    'sub_kategori' => null,
                     'jumlah' => $pemasukan->jumlah,
                     'deskripsi' => $pemasukan->nama . ($pemasukan->deskripsi ? ': ' . $pemasukan->deskripsi : ''),
                     'tanggal' => $pemasukan->tanggal,
                     'metode_pembayaran' => $pemasukan->metode_pembayaran,
                 ]);
             } else {
-                // Create arus kas if not exists (for old records)
-                $kategoriArusKas = $this->mapKategoriPemasukanToArusKas($pemasukan->kategori);
+                $kategoriMasterKas = $this->mapKategoriPemasukanToMasterKas($pemasukan->kategori);
 
-                ArusKas::create([
+                MasterKas::create([
                     'user_id' => $pemasukan->user_id,
                     'lokasi_id' => $lokasiId,
                     'jenis' => 'pemasukan',
-                    'kategori' => $kategoriArusKas,
-                    'sub_kategori' => $pemasukan->sub_kategori,
+                    'kategori' => $kategoriMasterKas,
+                    'sub_kategori' => null,
                     'jumlah' => $pemasukan->jumlah,
                     'deskripsi' => $pemasukan->nama . ($pemasukan->deskripsi ? ': ' . $pemasukan->deskripsi : ''),
                     'tanggal' => $pemasukan->tanggal,
-                    'referensi_id' => $pemasukan->id, 
+                    'referensi_id' => $pemasukan->id,
                     'referensi_type' => Pemasukan::class,
                     'metode_pembayaran' => $pemasukan->metode_pembayaran,
                     'status' => true,
@@ -254,8 +250,8 @@ class PemasukanController extends Controller
 
             $pemasukan = Pemasukan::findOrFail($id);
 
-            // Hapus arus kas terkait
-            ArusKas::where('referensi_type', Pemasukan::class)
+            // Hapus master kas terkait
+            MasterKas::where('referensi_type', Pemasukan::class)
                 ->where('referensi_id', $pemasukan->id)
                 ->delete();
 

@@ -134,9 +134,9 @@ class Pengeluaran extends Model
 
     public function getMetodePembayaranLabelAttribute(): string
     {
-        $labels = [
-            'cash' => 'Cash',
-            'transfer' => 'Transfer',
+        $labels = [ 
+            'cash' => 'Brankas',
+            'transfer' => 'Rekening',
             'kredit' => 'Kredit',
             'debit' => 'Debit',
             'qris' => 'QRIS'

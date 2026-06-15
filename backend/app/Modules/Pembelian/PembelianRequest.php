@@ -24,8 +24,8 @@ class PembelianRequest extends FormRequest
         $rules = [
             'supplier_id' => 'required|exists:supplier,id',
             'lokasi_id' => 'required|exists:lokasi,id',
-            'tanggal_pembelian' => 'required|date',
-            'metode_pembayaran' => 'required|in:cash,transfer,credit',
+            'tanggal_pembelian' => 'required|date', 
+            'metode_pembayaran' => 'required|in:cash,transfer',
             'catatan' => 'nullable|string',
         ];
 

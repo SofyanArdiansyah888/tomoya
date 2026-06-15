@@ -17,6 +17,7 @@ use App\Modules\Material\MaterialController;
 use App\Modules\Resep\ResepController;
 use App\Modules\Resep\BahanResepController;
 use App\Modules\ArusKas\ArusKasController;
+use App\Modules\MasterKas\MasterKasController;
 use App\Modules\Pemasukan\PemasukanController;
 use App\Modules\Pengeluaran\PengeluaranController;
 use App\Modules\Pembelian\PembelianController;
@@ -114,6 +115,12 @@ Route::middleware(['auth:sanctum', 'api.auth'])->group(function () {
     Route::get('arus-kas', [ArusKasController::class, 'index']);
     Route::get('arus-kas/stats', [ArusKasController::class, 'stats']);
     Route::get('arus-kas/filter-options', [ArusKasController::class, 'filterOptions']);
+    Route::post('arus-kas/sync-master-kas', [ArusKasController::class, 'syncMasterKas']);
+ 
+    // Master Kas API
+    Route::get('master-kas', [MasterKasController::class, 'index']);
+    Route::get('master-kas/stats', [MasterKasController::class, 'stats']);
+    Route::get('master-kas/filter-options', [MasterKasController::class, 'filterOptions']);
 
     // Pengeluaran API
     Route::get('pengeluaran/statistics', [PengeluaranController::class, 'statistics']);

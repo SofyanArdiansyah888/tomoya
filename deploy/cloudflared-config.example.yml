@@ -1,0 +1,10 @@
+# Contoh config cloudflared — sesuaikan tunnel ID & credentials dari Cloudflare Dashboard
+# Simpan sebagai: C:\Users\<user>\.cloudflared\config.yml
+#
+# tunnel: <TUNNEL_ID>
+# credentials-file: C:\Users\<user>\.cloudflared\<TUNNEL_ID>.json
+#
+# ingress:
+#   - hostname: tomoya4management.net
+#     service: http://localhost:80
+#   - service: http_status:404

@@ -12,7 +12,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '../../components/ui/select-primitives'
-import { Pemasukan, CreatePemasukanRequest, PEMASUKAN_KATEGORI_OPTIONS, PEMASUKAN_SUB_KATEGORI_OPTIONS, PEMASUKAN_METODE_PEMBAYARAN_OPTIONS } from '../../types/pemasukan'
+import { Pemasukan, CreatePemasukanRequest, PEMASUKAN_KATEGORI_OPTIONS, PEMASUKAN_METODE_PEMBAYARAN_OPTIONS } from '../../types/pemasukan'
 
 interface PemasukanFormProps {
   pemasukan?: Pemasukan | null
@@ -23,9 +23,8 @@ interface PemasukanFormProps {
 
 export const PemasukanForm = ({ pemasukan, onSubmit, onCancel, isSaving = false }: PemasukanFormProps) => {
   const [formData, setFormData] = useState<CreatePemasukanRequest>({
-    toko_id: 1, // Default toko, should be dynamic
+    toko_id: 1,
     kategori: 'pemasukan_non_kasir',
-    sub_kategori: '',
     nama: '',
     deskripsi: '',
     jumlah: 0,
@@ -43,12 +42,13 @@ export const PemasukanForm = ({ pemasukan, onSubmit, onCancel, isSaving = false 
       setFormData({
         toko_id: pemasukan.toko_id,
         kategori: pemasukan.kategori,
-        sub_kategori: pemasukan.sub_kategori || '',
         nama: pemasukan.nama,
         deskripsi: pemasukan.deskripsi || '',
         jumlah: pemasukan.jumlah,
         tanggal: pemasukan.tanggal,
-        metode_pembayaran: pemasukan.metode_pembayaran,
+        metode_pembayaran: pemasukan.metode_pembayaran === 'cash' || pemasukan.metode_pembayaran === 'transfer'
+          ? pemasukan.metode_pembayaran
+          : 'cash',
         referensi: pemasukan.referensi || '',
         bukti_pembayaran: pemasukan.bukti_pembayaran || '',
         is_active: pemasukan.is_active,
@@ -74,18 +74,12 @@ export const PemasukanForm = ({ pemasukan, onSubmit, onCancel, isSaving = false 
     setFormData(prev => ({
       ...prev,
       kategori: kategori as any,
-      sub_kategori: '' // Reset sub kategori when kategori changes
     }))
-  }
-
-  const getSubKategoriOptions = () => {
-    return PEMASUKAN_SUB_KATEGORI_OPTIONS.filter(option => option.kategori === selectedKategori)
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Nama Pemasukan */}
         <div className="md:col-span-2">
           <Label htmlFor="nama">Nama Pemasukan *</Label>
           <Input
@@ -97,7 +91,6 @@ export const PemasukanForm = ({ pemasukan, onSubmit, onCancel, isSaving = false 
           />
         </div>
 
-        {/* Kategori */}
         <div>
           <Label htmlFor="kategori">Kategori *</Label>
           <Select value={selectedKategori} onValueChange={handleKategoriChange}>
@@ -114,27 +107,6 @@ export const PemasukanForm = ({ pemasukan, onSubmit, onCancel, isSaving = false 
           </Select>
         </div>
 
-        {/* Sub Kategori */}
-        <div>
-          <Label htmlFor="sub_kategori">Sub Kategori</Label>
-          <Select 
-            value={formData.sub_kategori || ''} 
-            onValueChange={(value) => handleInputChange('sub_kategori', value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Pilih sub kategori" />
-            </SelectTrigger>
-            <SelectContent>
-              {getSubKategoriOptions().map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Jumlah */}
         <div>
           <Label htmlFor="jumlah">Jumlah *</Label>
           <CurrencyInput
@@ -145,7 +117,6 @@ export const PemasukanForm = ({ pemasukan, onSubmit, onCancel, isSaving = false 
           />
         </div>
 
-        {/* Tanggal */}
         <div>
           <Label htmlFor="tanggal">Tanggal *</Label>
           <Input
@@ -157,7 +128,6 @@ export const PemasukanForm = ({ pemasukan, onSubmit, onCancel, isSaving = false 
           />
         </div>
 
-        {/* Metode Pembayaran */}
         <div>
           <Label htmlFor="metode_pembayaran">Metode Pembayaran *</Label>
           <Select 
@@ -177,7 +147,6 @@ export const PemasukanForm = ({ pemasukan, onSubmit, onCancel, isSaving = false 
           </Select>
         </div>
 
-        {/* Referensi */}
         <div>
           <Label htmlFor="referensi">Referensi</Label>
           <Input
@@ -188,8 +157,6 @@ export const PemasukanForm = ({ pemasukan, onSubmit, onCancel, isSaving = false 
           />
         </div>
 
-
-        {/* Deskripsi */}
         <div className="md:col-span-2">
           <Label htmlFor="deskripsi">Deskripsi</Label>
           <Textarea
@@ -201,7 +168,6 @@ export const PemasukanForm = ({ pemasukan, onSubmit, onCancel, isSaving = false 
           />
         </div>
 
-        {/* Is Active */}
         <div className="md:col-span-2 flex items-center space-x-2">
           <Switch
             id="is_active"
@@ -212,7 +178,6 @@ export const PemasukanForm = ({ pemasukan, onSubmit, onCancel, isSaving = false 
         </div>
       </div>
 
-      {/* Action Buttons */}
       <div className="flex justify-end space-x-2 pt-4 border-t">
         <Button type="button" variant="outline" onClick={onCancel}>
           Batal

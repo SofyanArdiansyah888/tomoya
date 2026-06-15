@@ -23,7 +23,6 @@ export const DaftarPengeluaran = () => {
   // Filter states
   const [searchTerm, setSearchTerm] = useState('')
   const [kategoriFilter, setKategoriFilter] = useState('')
-  const [subKategoriFilter, setSubKategoriFilter] = useState('')
   const [dateFromFilter, setDateFromFilter] = useState('')
   const [dateToFilter, setDateToFilter] = useState('')
   const [sortFilter, setSortFilter] = useState('tanggal-desc')
@@ -44,7 +43,6 @@ export const DaftarPengeluaran = () => {
       const filters: PengeluaranFilters = {
         search: searchTerm || undefined,
         kategori: kategoriFilter || undefined,
-        sub_kategori: subKategoriFilter || undefined,
         tanggal_dari: dateFromFilter || undefined,
         tanggal_sampai: dateToFilter || undefined,
         sort_by: sortFilter.split('-')[0],
@@ -93,7 +91,7 @@ export const DaftarPengeluaran = () => {
   React.useEffect(() => {
     loadPengeluarans()
     loadStats()
-  }, [searchTerm, kategoriFilter, subKategoriFilter, dateFromFilter, dateToFilter, sortFilter])
+  }, [searchTerm, kategoriFilter, dateFromFilter, dateToFilter, sortFilter])
 
   // Handle create/update
   const handleSubmit = async (data: CreatePengeluaranRequest) => {
@@ -178,7 +176,6 @@ export const DaftarPengeluaran = () => {
   const handleResetFilters = () => {
     setSearchTerm('')
     setKategoriFilter('')
-    setSubKategoriFilter('')
     setDateFromFilter('')
     setDateToFilter('')
     setSortFilter('tanggal-desc')
@@ -246,7 +243,7 @@ export const DaftarPengeluaran = () => {
       <Card>
         <CardContent className="p-4 md:p-6">
           <div className="flex justify-between items-start gap-4 mb-4">
-            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div className="w-full min-w-0">
                 <SearchInput
                   label="Cari Pengeluaran"
@@ -268,37 +265,6 @@ export const DaftarPengeluaran = () => {
                   <option value="">Semua Kategori</option>
                   <option value="pengeluaran_operasional">Pengeluaran Operasional</option>
                   <option value="pengeluaran_lainnya">Pengeluaran Lainnya</option>
-                </select>
-              </div>
-
-              <div className="w-full min-w-0">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sub Kategori
-                </label>
-                <select
-                  value={subKategoriFilter}
-                  onChange={(e) => setSubKategoriFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                >
-                  <option value="">Semua Sub Kategori</option>
-                  {kategoriFilter === 'pengeluaran_operasional' && (
-                    <>
-                      <option value="gaji_karyawan">Gaji Karyawan</option>
-                      <option value="listrik_air">Listrik & Air</option>
-                      <option value="sewa_tempat">Sewa Tempat</option>
-                      <option value="pemeliharaan">Pemeliharaan</option>
-                    </>
-                  )}
-                  {kategoriFilter === 'pengeluaran_lainnya' && (
-                    <>
-                      <option value="lainnya">Lainnya</option>
-                    </>
-                  )}
-                  {kategoriFilter === 'pembelian_bahan_baku' && (
-                    <>
-                      <option value="pembelian_bahan">Pembelian Bahan</option>
-                    </>
-                  )}
                 </select>
               </div>
 

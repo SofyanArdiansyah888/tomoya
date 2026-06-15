@@ -7,6 +7,7 @@ import { Input } from '../../components/ui/input'
 import { Modal } from '../../components/ui/modal'
 import { useUpdateOrder } from '../../hooks/useOrders'
 import { formatPrice } from '../../lib/formatPrice'
+import { getStorageUrl } from '../../utils/apiUrl'
 import { produkLokasiService } from '../../services/inventory'
 import { productService } from '../../services/products'
 import { Pesanan } from '../../types/order'
@@ -429,7 +430,7 @@ export const EditOrderModal = ({ isOpen, onClose, order }: EditOrderModalProps) 
                 <div className="mt-2">
                   <p className="text-xs text-gray-600 mb-1">Gambar QRIS saat ini:</p>
                   <img
-                    src={`${import.meta.env.VITE_API_URL}/storage/${order.gambar_qris}`}
+                    src={getStorageUrl(order.gambar_qris)}
                     alt="QRIS Current"
                     className="w-full h-32 object-contain border border-gray-300 rounded-md mt-1"
                   />

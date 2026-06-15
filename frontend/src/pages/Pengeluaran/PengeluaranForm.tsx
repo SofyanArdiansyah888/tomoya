@@ -12,7 +12,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '../../components/ui/select-primitives'
-import { Pengeluaran, CreatePengeluaranRequest, PENGELUARAN_KATEGORI_OPTIONS, PENGELUARAN_SUB_KATEGORI_OPTIONS, PENGELUARAN_METODE_PEMBAYARAN_OPTIONS } from '../../types/expense'
+import { Pengeluaran, CreatePengeluaranRequest, PENGELUARAN_KATEGORI_OPTIONS, PENGELUARAN_METODE_PEMBAYARAN_OPTIONS } from '../../types/expense'
 
 interface PengeluaranFormProps {
   pengeluaran?: Pengeluaran | null
@@ -23,9 +23,8 @@ interface PengeluaranFormProps {
 
 export const PengeluaranForm = ({ pengeluaran, onSubmit, onCancel, isSaving = false }: PengeluaranFormProps) => {
   const [formData, setFormData] = useState<CreatePengeluaranRequest>({
-    toko_id: 1, // Default toko, should be dynamic
+    toko_id: 1,
     kategori: 'pengeluaran_operasional',
-    sub_kategori: '',
     nama: '',
     deskripsi: '',
     jumlah: 0,
@@ -43,12 +42,13 @@ export const PengeluaranForm = ({ pengeluaran, onSubmit, onCancel, isSaving = fa
       setFormData({
         toko_id: pengeluaran.toko_id,
         kategori: pengeluaran.kategori === 'pembelian_bahan_baku' ? 'pengeluaran_operasional' : pengeluaran.kategori,
-        sub_kategori: pengeluaran.sub_kategori || '',
         nama: pengeluaran.nama,
         deskripsi: pengeluaran.deskripsi || '',
         jumlah: pengeluaran.jumlah,
         tanggal: pengeluaran.tanggal,
-        metode_pembayaran: pengeluaran.metode_pembayaran,
+        metode_pembayaran: pengeluaran.metode_pembayaran === 'cash' || pengeluaran.metode_pembayaran === 'transfer'
+          ? pengeluaran.metode_pembayaran
+          : 'cash',
         referensi: pengeluaran.referensi || '',
         bukti_pembayaran: pengeluaran.bukti_pembayaran || '',
         is_active: pengeluaran.is_active,
@@ -74,18 +74,12 @@ export const PengeluaranForm = ({ pengeluaran, onSubmit, onCancel, isSaving = fa
     setFormData(prev => ({
       ...prev,
       kategori: kategori as any,
-      sub_kategori: '' // Reset sub kategori when kategori changes
     }))
-  }
-
-  const getSubKategoriOptions = () => {
-    return PENGELUARAN_SUB_KATEGORI_OPTIONS.filter(option => option.kategori === selectedKategori)
   }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Nama Pengeluaran */}
         <div className="md:col-span-2">
           <Label htmlFor="nama">Nama Pengeluaran *</Label>
           <Input
@@ -97,7 +91,6 @@ export const PengeluaranForm = ({ pengeluaran, onSubmit, onCancel, isSaving = fa
           />
         </div>
 
-        {/* Kategori */}
         <div>
           <Label htmlFor="kategori">Kategori *</Label>
           <Select value={selectedKategori} onValueChange={handleKategoriChange}>
@@ -114,27 +107,6 @@ export const PengeluaranForm = ({ pengeluaran, onSubmit, onCancel, isSaving = fa
           </Select>
         </div>
 
-        {/* Sub Kategori */}
-        <div>
-          <Label htmlFor="sub_kategori">Sub Kategori</Label>
-          <Select 
-            value={formData.sub_kategori || ''} 
-            onValueChange={(value) => handleInputChange('sub_kategori', value)}
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Pilih sub kategori" />
-            </SelectTrigger>
-            <SelectContent>
-              {getSubKategoriOptions().map((option) => (
-                <SelectItem key={option.value} value={option.value}>
-                  {option.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-
-        {/* Jumlah */}
         <div>
           <Label htmlFor="jumlah">Jumlah *</Label>
           <CurrencyInput
@@ -145,7 +117,6 @@ export const PengeluaranForm = ({ pengeluaran, onSubmit, onCancel, isSaving = fa
           />
         </div>
 
-        {/* Tanggal */}
         <div>
           <Label htmlFor="tanggal">Tanggal *</Label>
           <Input
@@ -157,7 +128,6 @@ export const PengeluaranForm = ({ pengeluaran, onSubmit, onCancel, isSaving = fa
           />
         </div>
 
-        {/* Metode Pembayaran */}
         <div>
           <Label htmlFor="metode_pembayaran">Metode Pembayaran *</Label>
           <Select 
@@ -177,8 +147,6 @@ export const PengeluaranForm = ({ pengeluaran, onSubmit, onCancel, isSaving = fa
           </Select>
         </div>
 
-
-        {/* Referensi */}
         <div>
           <Label htmlFor="referensi">Referensi</Label>
           <Input
@@ -189,7 +157,6 @@ export const PengeluaranForm = ({ pengeluaran, onSubmit, onCancel, isSaving = fa
           />
         </div>
 
-        {/* Deskripsi */}
         <div className="md:col-span-2">
           <Label htmlFor="deskripsi">Deskripsi</Label>
           <Textarea
@@ -201,7 +168,6 @@ export const PengeluaranForm = ({ pengeluaran, onSubmit, onCancel, isSaving = fa
           />
         </div>
 
-        {/* Is Active */}
         <div className="md:col-span-2 flex items-center space-x-2">
           <Switch
             id="is_active"
@@ -212,7 +178,6 @@ export const PengeluaranForm = ({ pengeluaran, onSubmit, onCancel, isSaving = fa
         </div>
       </div>
 
-      {/* Action Buttons */}
       <div className="flex justify-end space-x-2 pt-4 border-t">
         <Button type="button" variant="outline" onClick={onCancel}>
           Batal

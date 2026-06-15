@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/ca
 import { Package, Warehouse, Store, AlertTriangle, TrendingUp, TrendingDown, DollarSign, Receipt, ArrowRight } from 'lucide-react'
 import { useQuery } from '@tanstack/react-query'
 import { itemLokasiService } from '../../services/inventory'
-import { cashFlowService } from '../../services/cashflow'
+import { masterKasService } from '../../services/masterKas'
 import { useUnpaidOrders } from '../../hooks/useOrders'
 import { formatPrice } from '../../lib/formatPrice'
 import { formatLocalDate } from '../../lib/utils'
@@ -18,8 +18,6 @@ export const Dashboard = () => {
   
   // Tanggal lokal (WIB) — jangan pakai toISOString() karena itu UTC
   const today = new Date()
-  const todayStr = formatLocalDate(today)
-  const todayEndStr = todayStr
 
   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1)
   const monthStartStr = formatLocalDate(monthStart)
@@ -40,24 +38,21 @@ export const Dashboard = () => {
     staleTime: 1000 * 60 * 2, // 2 minutes
   })
 
-  // Get today's cash flow stats
-  const { data: statsToday, isLoading: loadingStatsToday } = useQuery({
-    queryKey: ['cash-flow-stats', 'today'],
-    queryFn: () => cashFlowService.getCashFlowStats({
-      date_from: todayStr,
-      date_to: todayEndStr
-    }),
-    staleTime: 1000 * 60 * 2, // 2 minutes
+  // Total pemasukan & pengeluaran dari master kas
+  const { data: statsTotal, isLoading: loadingStatsTotal } = useQuery({
+    queryKey: ['master-kas-stats', 'total'],
+    queryFn: () => masterKasService.getMasterKasStats(),
+    staleTime: 1000 * 60 * 2,
   })
 
-  // Get this month's cash flow stats
+  // Pemasukan & pengeluaran bulan ini dari master kas
   const { data: statsMonth, isLoading: loadingStatsMonth } = useQuery({
-    queryKey: ['cash-flow-stats', 'month'],
-    queryFn: () => cashFlowService.getCashFlowStats({
+    queryKey: ['master-kas-stats', 'month', monthStartStr, monthEndStr],
+    queryFn: () => masterKasService.getMasterKasStats({
       date_from: monthStartStr,
       date_to: monthEndStr
     }),
-    staleTime: 1000 * 60 * 2, // 2 minutes
+    staleTime: 1000 * 60 * 2,
   })
 
   // Get unpaid orders
@@ -78,8 +73,8 @@ export const Dashboard = () => {
   const lowStockTokoList = lowStockToko || []
   const unpaidOrders = unpaidOrdersData?.data || []
   
-  const pemasukanHariIni = statsToday?.total_pemasukan || 0
-  const pengeluaranHariIni = statsToday?.total_pengeluaran || 0
+  const totalPemasukan = statsTotal?.total_pemasukan || 0
+  const totalPengeluaran = statsTotal?.total_pengeluaran || 0
   const pemasukanBulanIni = statsMonth?.total_pemasukan || 0
   const pengeluaranBulanIni = statsMonth?.total_pengeluaran || 0
 
@@ -103,17 +98,17 @@ export const Dashboard = () => {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Pemasukan Hari Ini */}
+        {/* Total Pemasukan */}
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Pemasukan Hari Ini</p>
+                <p className="text-sm font-medium text-gray-600">Total Pemasukan</p>
                 <p className="text-2xl font-bold text-green-600">
-                  {loadingStatsToday ? '...' : formatPrice(pemasukanHariIni)}
+                  {loadingStatsTotal ? '...' : formatPrice(totalPemasukan)}
                 </p>
                 <p className="text-sm text-gray-500">
-                  Dari arus kas
+                  Dari master kas
                 </p>
               </div>
               <div className="p-3 bg-green-100 rounded-lg">
@@ -123,17 +118,17 @@ export const Dashboard = () => {
           </CardContent>
         </Card>
 
-        {/* Pengeluaran Hari Ini */}
+        {/* Total Pengeluaran */}
         <Card>
           <CardContent className="p-6">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-sm font-medium text-gray-600">Pengeluaran Hari Ini</p>
+                <p className="text-sm font-medium text-gray-600">Total Pengeluaran</p>
                 <p className="text-2xl font-bold text-red-600">
-                  {loadingStatsToday ? '...' : formatPrice(pengeluaranHariIni)}
+                  {loadingStatsTotal ? '...' : formatPrice(totalPengeluaran)}
                 </p>
                 <p className="text-sm text-gray-500">
-                  Dari arus kas
+                  Dari master kas
                 </p>
               </div>
               <div className="p-3 bg-red-100 rounded-lg">
@@ -153,7 +148,7 @@ export const Dashboard = () => {
                   {loadingStatsMonth ? '...' : formatPrice(pemasukanBulanIni)}
                 </p>
                 <p className="text-sm text-gray-500">
-                  Dari arus kas
+                  Dari master kas
                 </p>
               </div>
               <div className="p-3 bg-green-100 rounded-lg">
@@ -173,7 +168,7 @@ export const Dashboard = () => {
                   {loadingStatsMonth ? '...' : formatPrice(pengeluaranBulanIni)}
                 </p>
                 <p className="text-sm text-gray-500">
-                  Dari arus kas
+                  Dari master kas
                 </p>
               </div>
               <div className="p-3 bg-red-100 rounded-lg">

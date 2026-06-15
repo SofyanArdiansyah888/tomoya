@@ -5,60 +5,49 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany; 
 
-class Pemasukan extends Model
+class MasterKas extends Model
 {
     use HasFactory;
 
-    protected $table = 'pemasukans';
+    protected $table = 'master_kas';
 
-    protected $fillable = [
-        'user_id',
-        'lokasi_id',
-        'shift_id',
-        'no_pemasukan',
-        'kategori',
-        'sub_kategori',
-        'nama',
-        'deskripsi',
-        'jumlah',
-        'tanggal',
-        'metode_pembayaran',
-        'referensi',
-        'bukti_pembayaran',
-        'is_active'
-    ];
+    protected $guarded = [];
 
     protected $casts = [
         'tanggal' => 'date',
         'jumlah' => 'decimal:2',
-        'is_active' => 'boolean',
-    ];
+        'subtotal' => 'decimal:2',
+        'uang_dibayar' => 'decimal:2',
+        'kembalian' => 'decimal:2',
+        'status' => 'boolean',
+        'is_recap' => 'boolean',
+    ]; 
 
     protected static function boot()
     {
         parent::boot();
 
-        static::creating(function ($pemasukan) {
-            if (empty($pemasukan->no_pemasukan)) {
-                $pemasukan->no_pemasukan = self::generateNoPemasukan();
+        static::creating(function ($masterKas) {
+            if (empty($masterKas->no_master_kas)) {
+                $masterKas->no_master_kas = self::generateNoMasterKas();
             }
         });
     }
 
-    public static function generateNoPemasukan(): string
+    public static function generateNoMasterKas(): string
     {
         $date = now()->format('Ymd');
-        $lastPemasukan = self::whereDate('created_at', today())
+        $last = self::whereDate('created_at', today())
             ->orderBy('id', 'desc')
             ->first();
-        
-        $sequence = $lastPemasukan ? (int) substr($lastPemasukan->no_pemasukan, -4) + 1 : 1;
-        
-        return 'PMS-' . $date . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+
+        $sequence = $last ? (int) substr($last->no_master_kas, -4) + 1 : 1;
+
+        return 'MK-' . $date . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
     }
 
-    // Relations
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -71,18 +60,27 @@ class Pemasukan extends Model
 
     public function shiftKasir(): BelongsTo
     {
-        return $this->belongsTo(ShiftKasir::class);
+        return $this->belongsTo(ShiftKasir::class, 'shift_id');
     }
 
-    // Scopes
+    public function arusKasItems(): HasMany
+    {
+        return $this->hasMany(ArusKas::class, 'master_kas_id');
+    }
+
+    public function scopePemasukan($query)
+    {
+        return $query->where('jenis', 'pemasukan');
+    }
+
+    public function scopePengeluaran($query)
+    {
+        return $query->where('jenis', 'pengeluaran');
+    }
+
     public function scopeByKategori($query, $kategori)
     {
         return $query->where('kategori', $kategori);
-    }
-
-    public function scopeBySubKategori($query, $subKategori)
-    {
-        return $query->where('sub_kategori', $subKategori);
     }
 
     public function scopeByDateRange($query, $startDate, $endDate)
@@ -95,18 +93,15 @@ class Pemasukan extends Model
         return $query->where('lokasi_id', $lokasiId);
     }
 
-    public function scopeActive($query)
-    {
-        return $query->where('is_active', true);
-    }
-
-    // Accessors
     public function getKategoriLabelAttribute(): string
     {
         $labels = [
             'pemasukan_kasir' => 'Pemasukan Kasir',
             'pemasukan_non_kasir' => 'Pemasukan Non Kasir',
-            'lainnya' => 'Lainnya'
+            'lainnya' => 'Lainnya',
+            'pengeluaran_operasional' => 'Pengeluaran Operasional',
+            'pengeluaran_lainnya' => 'Pengeluaran Lainnya',
+            'pembelian_bahan_baku' => 'Pembelian Bahan Baku',
         ];
 
         return $labels[$this->kategori] ?? $this->kategori;
@@ -123,27 +118,32 @@ class Pemasukan extends Model
             'investasi' => 'Investasi',
             'hibah' => 'Hibah',
             'refund_penjualan' => 'Refund Penjualan',
-            'lainnya' => 'Lainnya'
+            'lainnya' => 'Lainnya',
+            'gaji_karyawan' => 'Gaji Karyawan',
+            'listrik_air' => 'Listrik & Air',
+            'sewa_tempat' => 'Sewa Tempat',
+            'pemeliharaan' => 'Pemeliharaan',
+            'pembelian_bahan' => 'Pembelian Bahan',
         ];
 
         return $labels[$this->sub_kategori] ?? $this->sub_kategori;
     }
 
+    public function getJenisLabelAttribute(): string
+    {
+        return $this->jenis === 'pemasukan' ? 'Pemasukan' : 'Pengeluaran';
+    }
+
     public function getMetodePembayaranLabelAttribute(): string
     {
-        $labels = [ 
+        $labels = [
             'cash' => 'Brankas',
             'transfer' => 'Rekening',
             'kredit' => 'Kredit',
             'debit' => 'Debit',
-            'qris' => 'QRIS'
+            'qris' => 'QRIS',
         ];
 
         return $labels[$this->metode_pembayaran] ?? $this->metode_pembayaran;
-    }
-
-    public function getJumlahFormattedAttribute(): string
-    {
-        return 'Rp ' . number_format($this->jumlah, 0, ',', '.');
     }
 }

@@ -21,6 +21,8 @@ export interface ArusKas {
   metode_pembayaran: 'cash' | 'card' | 'qris' | 'other' | 'transfer' | 'kredit';
   metode_pembayaran_label: string;
   status?: boolean;
+  masuk_master_kas?: boolean;
+  master_kas_id?: number;
   created_at: string;
   updated_at: string;
   lokasi?: {
@@ -92,3 +94,11 @@ export interface FilterOptions {
   jenis: string[];
   metode_pembayaran: string[];
 }
+
+/** Cash vs non-cash grouping used for recap validation (matches table display). */
+export const isCashMetode = (metode?: string | null): boolean => metode === 'cash'
+
+export const sameMetodeRecapGroup = (
+  a?: string | null,
+  b?: string | null,
+): boolean => isCashMetode(a) === isCashMetode(b)

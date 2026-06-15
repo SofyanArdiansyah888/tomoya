@@ -2,6 +2,7 @@ import { Route, Routes } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { DashboardLayout } from './components/layout/DashboardLayout'
 import { DaftarArusKas } from './pages/ArusKas/DaftarArusKas'
+import { DaftarMasterKas } from './pages/MasterKas/DaftarMasterKas'
 import { Login } from './pages/Auth/Login/Login'
 import { Dashboard } from './pages/Dashboard/Dashboard'
 import { NotFound } from './pages/Errors/NotFound'
@@ -70,6 +71,7 @@ function App() {
 
           {/* Cash Flow Management */}
           <Route path="arus-kas" element={<DaftarArusKas />} />
+          <Route path="master-kas" element={<DaftarMasterKas />} />
 
           {/* Material Management */}
           <Route path="material" element={<MaterialPage />} />

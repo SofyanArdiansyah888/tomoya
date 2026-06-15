@@ -19,7 +19,7 @@ export interface Pembelian {
   no_pembelian: string;
   tanggal_pembelian: string;
   total_harga: number;
-  metode_pembayaran: 'cash' | 'transfer' | 'credit';
+  metode_pembayaran: 'cash' | 'transfer';
   catatan?: string;
   created_at: string;
   updated_at: string;
@@ -71,7 +71,7 @@ export interface CreatePurchaseRequest {
     quantity: number;
     harga_satuan: number;
   }[];
-  metode_pembayaran: 'cash' | 'transfer' | 'credit';
+  metode_pembayaran: 'cash' | 'transfer';
   catatan?: string;
 }
 
