@@ -156,7 +156,7 @@ export const printLabel = (
           justify-content: space-between;
           align-items: stretch;
           text-align: left;
-          padding: 1mm 0.4mm 0.6mm 1.6mm;
+          padding: 1mm 0.2mm 0.6mm 2.8mm;
           gap: 0.3mm;
         }
         .label-meta {
