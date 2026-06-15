@@ -15,7 +15,7 @@ if (!API_BASE_URL) {
 }
 
 export const api = axios.create({
-  baseURL: API_BASE_URL || 'https://tomoya4management.net/api',
+  baseURL: API_BASE_URL || 'http://tomoya.local/api',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
