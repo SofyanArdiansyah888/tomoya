@@ -5,6 +5,7 @@ import { Label } from '../../components/ui/label'
 import { Textarea } from '../../components/ui/textarea'
 import { Switch } from '../../components/ui/switch'
 import { CurrencyInput } from '../../components/ui/CurrencyInput'
+import { NumericInput } from '../../components/ui/NumericInput'
 import { SupplierSelect } from '../../components/forms/SupplierSelect'
 import { CategorySelect } from '../../components/forms/CategorySelect'
 import { UnitSelect } from '../../components/forms/UnitSelect'
@@ -201,13 +202,11 @@ export const MaterialForm = ({ material, onSubmit, onCancel, isSaving = false }:
 
           <div className="space-y-2">
             <Label htmlFor="nilai_konversi">Nilai Konversi *</Label>
-            <Input
+            <NumericInput
               id="nilai_konversi"
-              type="number"
-              min="0"
-              step="1"
+              asString
               value={formData.nilai_konversi}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('nilai_konversi', e.target.value)}
+              onChange={(value) => handleChange('nilai_konversi', value)}
               placeholder="Masukkan nilai konversi"
               required
             />
@@ -229,23 +228,21 @@ export const MaterialForm = ({ material, onSubmit, onCancel, isSaving = false }:
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label htmlFor="min_stock">Stok Minimum</Label>
-            <Input
+            <NumericInput
               id="min_stock"
-              type="number"
-              min="0"
+              asString
               value={formData.min_stock}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('min_stock', e.target.value)}
+              onChange={(value) => handleChange('min_stock', value)}
               placeholder="0"
             />
           </div>
           <div className="space-y-2">
             <Label htmlFor="min_stok_gudang">Stok Min Gudang *</Label>
-            <Input
+            <NumericInput
               id="min_stok_gudang"
-              type="number"
-              min="0"
+              asString
               value={formData.min_stok_gudang}
-              onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('min_stok_gudang', e.target.value)}
+              onChange={(value) => handleChange('min_stok_gudang', value)}
               placeholder="0"
               required
             />

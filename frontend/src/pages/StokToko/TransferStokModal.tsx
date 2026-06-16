@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Input } from '../../components/ui/input'
+import { NumericInput } from '../../components/ui/NumericInput'
 import { Button } from '../../components/ui/button'
 import { Modal } from '../../components/ui/modal'
 import { itemLokasiService } from '../../services/inventory'
@@ -162,12 +162,10 @@ export const TransferStokModal = ({
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Quantity *
           </label>
-          <Input
-            type="number"
+          <NumericInput
+            asString
             value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            min="1"
-            max={availableStock}
+            onChange={setQuantity}
             placeholder="Masukkan quantity"
             required
             disabled={!selectedMaterialId || loadingGudangStock}

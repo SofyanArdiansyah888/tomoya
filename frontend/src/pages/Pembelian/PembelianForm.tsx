@@ -14,6 +14,7 @@ import {
 import { Material } from '../../types/material'
 import { Pembelian } from '../../types/purchase'
 import { CurrencyInput } from '@/components/ui/CurrencyInput'
+import { NumericInput } from '@/components/ui/NumericInput'
 import { SupplierSelect, LokasiSelect } from '@/components/forms'
 
 interface PembelianFormProps {
@@ -265,11 +266,9 @@ export const PembelianForm = ({
 
                         </TableCell>
                         <TableCell>
-                          <Input
-                            type="number"
-                            value={item.quantity || ''}
-                            onChange={(e) => handleUpdateItem(item.id, 'quantity', Number(e.target.value) || 0)}
-                            min="1"
+                          <NumericInput
+                            value={item.quantity || 0}
+                            onChange={(value) => handleUpdateItem(item.id, 'quantity', value)}
                             required
                             className="w-full"
                           />
