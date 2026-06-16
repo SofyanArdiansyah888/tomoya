@@ -81,7 +81,7 @@ export const ArusKasTable = ({
             return
           }
           if (!sameMetodeRecapGroup(first.metode_pembayaran, cashFlow.metode_pembayaran)) {
-            toast.error('Recap hanya boleh dari metode pembayaran yang sama (Cash atau Non Cash)')
+            toast.error('Recap hanya boleh dari sumber yang sama (Brankas atau Rekening)')
             return
           }
         }
@@ -174,7 +174,7 @@ export const ArusKasTable = ({
                 <TableHead>Jenis</TableHead>
                 <TableHead>Kategori & Sub Kategori</TableHead>
                 <TableHead>User</TableHead>
-                <TableHead>Metode Pembayaran</TableHead>
+                <TableHead>Brankas / Rekening</TableHead>
                 <TableHead>Master Kas</TableHead>
                 <TableHead className="text-right w-[150px]">Jumlah</TableHead>
               </TableRow>
@@ -231,7 +231,7 @@ export const ArusKasTable = ({
                   </TableCell>
                   <TableCell>
                     <span>
-                      {isCashMetode(cashFlow.metode_pembayaran) ? 'Cash' : 'Non Cash'}
+                      {isCashMetode(cashFlow.metode_pembayaran) ? 'Brankas' : 'Rekening'}
                     </span>
                   </TableCell>
                   <TableCell>

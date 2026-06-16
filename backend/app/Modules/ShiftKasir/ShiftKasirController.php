@@ -86,30 +86,6 @@ class ShiftKasirController extends Controller
             // Calculate totals from all transactions
             $totals = $shift->calculateTotals();
 
-            // Agregat penjualan cash shift (non-cash sudah tercatat per pesanan)
-            if (
-                !$shift->closingArusKasQuery()->exists()
-                && (float) $totals['total_penjualan_cash'] > 0
-            ) {
-                ArusKas::create([ 
-                    'user_id' => $userId,
-                    'lokasi_id' => $shift->lokasi_id,
-                    'shift_id' => $shift->id,
-                    'jenis' => 'pemasukan',
-                    'kategori' => 'pemasukan_kasir',
-                    'sub_kategori' => 'penjualan_kasir',
-                    'jumlah' => $totals['total_penjualan_cash'],
-                    'deskripsi' => 'Closing Kasir ' . $shift->no_shift_kasir . ' (Cash)',
-                    'tanggal' => now()->toDateString(),
-                    'referensi_id' => $shift->id,
-                    'referensi_type' => 'ShiftKasir',
-                    'metode_pembayaran' => 'cash',
-                    'status' => true,
-                ]);
-            }
-
-            $totals = $shift->fresh()->calculateTotals();
-
             // Update shift with totals and saldo akhir
             $shift->update([
                 'saldo_akhir' => $request->saldo_akhir,
@@ -270,7 +246,7 @@ class ShiftKasirController extends Controller
     }
 
     /**
-     * Sesuaikan jumlah pemasukan closing shift (rekonsiliasi PIC).
+     * Input pemasukan closing shift (penjualan tunai) — satu kali per shift.
      */
     public function inputPemasukan(Request $request, string $id): JsonResponse
     {
@@ -282,22 +258,35 @@ class ShiftKasirController extends Controller
 
         if ($shift->status !== 'closed') {
             return response()->json([
-                'message' => 'Shift belum ditutup. Sesuaikan pemasukan hanya dapat dilakukan setelah closing.'
+                'message' => 'Shift belum ditutup. Input pemasukan hanya dapat dilakukan setelah closing.'
             ], 400);
         }
 
-        $closing = $shift->closingArusKasQuery()->first();
-
-        if (!$closing) {
+        if ($shift->closingArusKasQuery()->exists()) {
             return response()->json([
-                'message' => 'Entri closing belum ada. Tutup shift terlebih dahulu.'
+                'message' => 'Pemasukan shift sudah diinput untuk shift ini.'
             ], 400);
         }
 
+        $user = $request->user();
+        $userId = $user ? $user->id : 1;
+ 
         DB::beginTransaction();
         try {
-            $closing->update([
+            $closing = ArusKas::create([
+                'user_id' => $userId,
+                'lokasi_id' => $shift->lokasi_id,
+                'shift_id' => $shift->id,
+                'jenis' => 'pemasukan',
+                'kategori' => 'pemasukan_kasir',
+                'sub_kategori' => 'penjualan_kasir',
                 'jumlah' => $request->jumlah,
+                'deskripsi' => 'Closing Kasir ' . $shift->no_shift_kasir . ' (Cash)',
+                'tanggal' => now()->toDateString(),
+                'referensi_id' => $shift->id,
+                'referensi_type' => 'ShiftKasir',
+                'metode_pembayaran' => 'cash',
+                'status' => true,
             ]);
 
             $totals = $shift->fresh()->calculateTotals();
@@ -306,13 +295,13 @@ class ShiftKasirController extends Controller
             DB::commit();
 
             return response()->json([
-                'message' => 'Pemasukan shift berhasil disesuaikan',
-                'data' => $closing->fresh()
-            ], 200);
+                'message' => 'Pemasukan shift berhasil dicatat',
+                'data' => $closing
+            ], 201);
         } catch (\Exception $e) {
             DB::rollBack();
             return response()->json([
-                'message' => 'Gagal menyesuaikan pemasukan shift',
+                'message' => 'Gagal mencatat pemasukan shift',
                 'error' => $e->getMessage()
             ], 500);
         }

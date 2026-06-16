@@ -40,6 +40,8 @@ use App\Modules\Hpp\HppPenjualanController;
 // Public authentication routes
 Route::post('/register', [AutentikasiController::class, 'register']);
 Route::post('/login', [AutentikasiController::class, 'login']);
+ 
+Route::get('/public/pesanan/terbaru', [PesananController::class, 'publicLatest']);
 
 // Protected routes
 Route::middleware(['auth:sanctum', 'api.auth'])->group(function () {

@@ -15,6 +15,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\DB;
 use App\Http\Resources\ApiResource;
 use App\Http\Resources\PesananResource;
+use App\Http\Resources\PublicPesananResource;
 
 class PesananController extends Controller
 { 
@@ -532,6 +533,20 @@ class PesananController extends Controller
             DB::rollback();
             return response()->json(['message' => 'Gagal membuat pesanan: ' . $e->getMessage()], 500);
         } 
+    }
+ 
+    /**
+     * Pesanan terbaru untuk layar display pelanggan (public, tanpa auth).
+     */
+    public function publicLatest(): JsonResponse
+    {
+        $pesanan = Pesanan::with(['itemPesanan.produk', 'lokasi'])
+            ->orderByDesc('created_at')
+            ->first();
+
+        return response()->json([
+            'data' => $pesanan ? new PublicPesananResource($pesanan) : null,
+        ]);
     }
 
     /**
