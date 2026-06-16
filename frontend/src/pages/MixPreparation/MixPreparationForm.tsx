@@ -9,6 +9,63 @@ import { toast } from 'sonner'
 
 type MixInput = { material_id: string; quantity: number }
 
+interface MixInputRowProps {
+  index: number
+  row: MixInput
+  lokasiId: number
+  onChangeMaterial: (index: number, materialId: string) => void
+  onChangeQuantity: (index: number, quantity: number) => void
+  onRemove: (index: number) => void
+}
+
+const MixInputRow = ({ index, row, lokasiId, onChangeMaterial, onChangeQuantity, onRemove }: MixInputRowProps) => {
+  const { data: stocks } = useQuery({
+    queryKey: ['item-lokasi-toko-input', row.material_id],
+    queryFn: () => itemLokasiService.getCurrentStock('toko'),
+    enabled: !!row.material_id
+  })
+
+  const current = useMemo(() => {
+    if (!row.material_id || !stocks) return { qty: 0, unit: '' }
+    const s = stocks.find((x: any) => x.material_id == Number(row.material_id) && x.lokasi_id === lokasiId)
+    return {
+      qty: Number(s?.quantity ?? s?.current_stock ?? 0),
+      unit: s?.material?.unit ?? ''
+    }
+  }, [stocks, row.material_id, lokasiId])
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_auto] gap-4 items-center">
+      <div>
+        <label className="block text-sm font-medium mb-1">Material</label>
+        <MaterialSelect value={row.material_id} onChange={(v) => onChangeMaterial(index, v)} placeholder="Pilih material" />
+        <div className="h-4" />
+      </div>
+      <div>
+        <div className="flex items-center justify-between mb-1">
+          <label className="block text-sm font-medium">Jumlah</label>
+          {row.material_id && (
+            <span className="text-xs text-gray-600">Stok saat ini: {current.qty} {current.unit}</span>
+          )}
+        </div>
+        <NumericInput
+          value={row.quantity}
+          onChange={(val) => onChangeQuantity(index, val)}
+          className={row.material_id && row.quantity > current.qty ? 'border-red-500' : ''}
+        />
+        <div className="h-4">
+          {row.material_id && row.quantity > current.qty && (
+            <span className="text-xs text-red-600">Maksimal {current.qty} {current.unit}</span>
+          )}
+        </div>
+      </div>
+      <div className="flex md:justify-end items-center h-full">
+        <Button variant="destructive" size="sm" onClick={() => onRemove(index)}>Hapus</Button>
+      </div>
+    </div>
+  )
+}
+
 interface MixPreparationFormProps {
   lokasiId: number
   onSuccess?: () => void
@@ -50,63 +107,6 @@ export const MixPreparationForm = ({ lokasiId, onSuccess }: MixPreparationFormPr
       unit: s?.material?.unit ?? ''
     }
   }, [outputMaterialId, outputStocks, lokasiId])
-
-  interface MixInputRowProps {
-    index: number
-    row: MixInput
-    lokasiId: number
-    onChangeMaterial: (index: number, materialId: string) => void
-    onChangeQuantity: (index: number, quantity: number) => void
-    onRemove: (index: number) => void
-  }
-
-  const MixInputRow = ({ index, row, lokasiId, onChangeMaterial, onChangeQuantity, onRemove }: MixInputRowProps) => {
-    const { data: stocks } = useQuery({
-      queryKey: ['item-lokasi-toko-input', row.material_id],
-      queryFn: () => itemLokasiService.getCurrentStock('toko'),
-      enabled: !!row.material_id
-    })
-
-    const current = useMemo(() => {
-      if (!row.material_id || !stocks) return { qty: 0, unit: '' }
-      const s = stocks.find((x: any) => x.material_id == Number(row.material_id) && x.lokasi_id === lokasiId)
-      return {
-        qty: Number(s?.quantity ?? s?.current_stock ?? 0),
-        unit: s?.material?.unit ?? ''
-      }
-    }, [stocks, row.material_id, lokasiId])
-
-    return (
-      <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_auto] gap-4 items-center">
-        <div>
-          <label className="block text-sm font-medium mb-1">Material</label>
-          <MaterialSelect value={row.material_id} onChange={(v) => onChangeMaterial(index, v)} placeholder="Pilih material" />
-          <div className="h-4" />
-        </div>
-        <div>
-          <div className="flex items-center justify-between mb-1">
-            <label className="block text-sm font-medium">Jumlah</label>
-            {row.material_id && (
-              <span className="text-xs text-gray-600">Stok saat ini: {current.qty} {current.unit}</span>
-            )}
-          </div>
-          <NumericInput
-            value={row.quantity}
-            onChange={(val) => onChangeQuantity(index, val)}
-            className={row.material_id && row.quantity > current.qty ? 'border-red-500' : ''}
-          />
-          <div className="h-4">
-            {row.material_id && row.quantity > current.qty && (
-              <span className="text-xs text-red-600">Maksimal {current.qty} {current.unit}</span>
-            )}
-          </div>
-        </div>
-        <div className="flex md:justify-end items-center h-full">
-          <Button variant="destructive" size="sm" onClick={() => onRemove(index)}>Hapus</Button>
-        </div>
-      </div>
-    )
-  }
 
   const addInputRow = () => setInputs(prev => [...prev, { material_id: '', quantity: 0 }])
   const removeInputRow = (index: number) => setInputs(prev => prev.filter((_, i) => i !== index))

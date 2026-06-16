@@ -44,8 +44,10 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
       formatNumericDisplay(value, emptyWhenZero),
     )
     const prevValueRef = useRef(value)
+    const isFocusedRef = useRef(false)
 
     useEffect(() => {
+      if (isFocusedRef.current) return
       if (value !== prevValueRef.current) {
         prevValueRef.current = value
         setText(formatNumericDisplay(value, emptyWhenZero))
@@ -72,6 +74,7 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
     }
 
     const handleBlur = (e: React.FocusEvent<HTMLInputElement>) => {
+      isFocusedRef.current = false
       const parsed = parseNumericText(text, { allowDecimal, allowNegative })
       const display = emptyWhenZero && parsed === 0
         ? ''
@@ -83,6 +86,7 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
       } else {
         ;(onChange as (value: number) => void)(parsed)
       }
+      prevValueRef.current = asString ? display : parsed
       onBlur?.(e)
     }
 
@@ -93,6 +97,7 @@ export const NumericInput = React.forwardRef<HTMLInputElement, NumericInputProps
         inputMode={allowDecimal ? 'decimal' : 'numeric'}
         value={text}
         onChange={handleChange}
+        onFocus={() => { isFocusedRef.current = true }}
         onBlur={handleBlur}
         {...props}
       />

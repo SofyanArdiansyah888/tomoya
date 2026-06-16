@@ -22,6 +22,7 @@ export { Textarea } from './textarea'
 export { Switch } from './switch'
 export { CurrencyInput } from './CurrencyInput'
 export { NumericInput } from './NumericInput'
+export { SelectSearchField, selectContentSearchProps } from './SelectSearchField'
 export { 
   Table, 
   TableHeader, 
