@@ -102,7 +102,7 @@ export const MasterKasTable = ({
                 <TableHead>Jenis</TableHead>
                 <TableHead>Kategori & Sub Kategori</TableHead>
                 <TableHead>User</TableHead>
-                <TableHead>Metode Pembayaran</TableHead>
+                <TableHead>Brankas / Rekening</TableHead>
                 <TableHead className="text-right w-[150px]">Jumlah</TableHead>
               </TableRow>
             </TableHeader>

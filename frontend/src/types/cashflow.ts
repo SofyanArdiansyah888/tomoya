@@ -95,8 +95,8 @@ export interface FilterOptions {
   jenis: string[];
   metode_pembayaran: string[];
 }
-
-/** Cash vs non-cash grouping used for recap validation (matches table display). */
+ 
+/** Brankas (cash) vs Rekening (non-cash) grouping for recap validation. */
 export const isCashMetode = (metode?: string | null): boolean => metode === 'cash'
 
 export const sameMetodeRecapGroup = (

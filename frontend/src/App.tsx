@@ -27,6 +27,7 @@ import { HppResepPage } from './pages/Hpp/HppResepPage'
 import { HppPenjualanPage } from './pages/Hpp/HppPenjualanPage'
 import { ProtectedRoute } from './router/ProtectedRoute'
 import { MixPreparation } from './pages/MixPreparation/MixPreparation'
+import { StatusPesananPage } from './pages/StatusPesanan/StatusPesananPage'
 
 function App() {
   return (
@@ -34,6 +35,7 @@ function App() {
       <Routes>
         {/* Public Routes */}
         <Route path="/login" element={<Login />} />
+        <Route path="/pesanan-user" element={<StatusPesananPage />} />
 
         {/* Protected Dashboard Routes */}
         <Route

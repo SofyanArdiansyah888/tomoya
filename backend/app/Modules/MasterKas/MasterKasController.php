@@ -128,7 +128,12 @@ class MasterKasController extends Controller
             ->select('kategori', DB::raw('SUM(jumlah) as total'))
             ->groupBy('kategori')
             ->get()
-            ->pluck('total', 'kategori');
+            ->pluck('total', 'kategori'); 
+
+        $brankasPemasukan = (clone $query)->where('jenis', 'pemasukan')->where('metode_pembayaran', 'cash')->sum('jumlah');
+        $brankasPengeluaran = (clone $query)->where('jenis', 'pengeluaran')->where('metode_pembayaran', 'cash')->sum('jumlah');
+        $rekeningPemasukan = (clone $query)->where('jenis', 'pemasukan')->where('metode_pembayaran', '!=', 'cash')->sum('jumlah');
+        $rekeningPengeluaran = (clone $query)->where('jenis', 'pengeluaran')->where('metode_pembayaran', '!=', 'cash')->sum('jumlah');
 
         return response()->json([
             'data' => [
@@ -138,6 +143,12 @@ class MasterKasController extends Controller
                 'total_transaksi' => $totalTransaksi,
                 'breakdown_pemasukan' => $breakdownPemasukan,
                 'breakdown_pengeluaran' => $breakdownPengeluaran,
+                'saldo_brankas' => $brankasPemasukan - $brankasPengeluaran,
+                'pemasukan_brankas' => $brankasPemasukan,
+                'pengeluaran_brankas' => $brankasPengeluaran,
+                'saldo_rekening' => $rekeningPemasukan - $rekeningPengeluaran,
+                'pemasukan_rekening' => $rekeningPemasukan,
+                'pengeluaran_rekening' => $rekeningPengeluaran,
             ],
         ]);
     }

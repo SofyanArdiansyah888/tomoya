@@ -113,7 +113,7 @@ export const ShiftKasirPage = () => {
       await shiftService.inputPemasukan(selectedShift.id, payload)
       setShowInputPemasukanModal(false)
       setSelectedShift(null)
-      toast({ title: 'Berhasil', description: 'Pemasukan shift berhasil disesuaikan' })
+      toast({ title: 'Berhasil', description: 'Pemasukan shift berhasil dicatat' })
       refetchShifts()
     } catch (error: any) {
       toast({ title: 'Error', description: error.response?.data?.message || 'Gagal mencatat pemasukan shift', variant: 'destructive' })
@@ -286,14 +286,14 @@ export const ShiftKasirPage = () => {
                           >
                             <Eye className="h-4 w-4" />
                           </Button> 
-                          {shift.status === 'closed' && (
+                          {shift.status === 'closed' && !shift.has_input_pemasukan && shift.total_penjualan_cash > 0 && (
                             <Button
                               variant="ghost"
                               size="sm"
                               className="h-8 w-8 p-0"
                               onClick={() => handleInputPemasukan(shift)}
-                              aria-label="Sesuaikan Pemasukan"
-                              title="Sesuaikan Pemasukan"
+                              aria-label="Input Pemasukan Shift"
+                              title="Input Pemasukan Shift (Tunai)"
                             >
                               <Plus className="h-4 w-4" />
                             </Button>
@@ -345,7 +345,7 @@ export const ShiftKasirPage = () => {
         isOpen={showInputPemasukanModal}
         onClose={() => { setShowInputPemasukanModal(false); setSelectedShift(null) }}
         onSubmit={submitInputPemasukan}
-        defaultJumlah={selectedShift?.total_penjualan}
+        defaultJumlah={selectedShift?.total_penjualan_cash}
       />
     </div>
   )

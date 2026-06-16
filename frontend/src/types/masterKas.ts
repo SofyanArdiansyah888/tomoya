@@ -65,6 +65,12 @@ export interface MasterKasStats {
   total_transaksi: number;
   breakdown_pemasukan: Record<string, number>;
   breakdown_pengeluaran: Record<string, number>;
+  saldo_brankas: number;
+  pemasukan_brankas: number;
+  pengeluaran_brankas: number;
+  saldo_rekening: number;
+  pemasukan_rekening: number;
+  pengeluaran_rekening: number;
 }
 
 export interface MasterKasFilterOptions {

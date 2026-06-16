@@ -281,8 +281,8 @@ class ArusKasController extends Controller
         $hasCash = $entries->contains(fn ($e) => $this->isCashMetode($e->metode_pembayaran));
         $hasNonCash = $entries->contains(fn ($e) => ! $this->isCashMetode($e->metode_pembayaran));
         if ($hasCash && $hasNonCash) { 
-            DB::rollBack();
-            return response()->json(['message' => 'Recap hanya boleh dari metode pembayaran yang sama (Cash atau Non Cash)'], 422);
+            DB::rollBack(); 
+            return response()->json(['message' => 'Recap hanya boleh dari sumber yang sama (Brankas atau Rekening)'], 422);
         }
         $metodePembayaran = $this->resolveRecapMetodePembayaran($entries);
  
@@ -371,31 +371,11 @@ class ArusKasController extends Controller
 
     private function mapArusKasMetodeToMasterKas(?string $metode): string
     {
-        if ($this->isCashMetode($metode)) {
-            return 'cash';
-        }
-
-        $valid = ['transfer', 'qris', 'kredit', 'debit'];
-        if (in_array($metode, $valid, true)) {
-            return $metode;
-        }
-
-        return 'transfer';
+        return $this->isCashMetode($metode) ? 'cash' : 'transfer';
     }
 
     private function resolveRecapMetodePembayaran($entries): string
     {
-        $mapped = $entries->map(fn ($e) => $this->mapArusKasMetodeToMasterKas($e->metode_pembayaran));
-
-        if ($mapped->every(fn ($m) => $m === 'cash')) {
-            return 'cash';
-        }
-
-        $unique = $mapped->unique()->values();
-        if ($unique->count() === 1) {
-            return $unique->first();
-        }
-
-        return 'transfer';
+        return $this->mapArusKasMetodeToMasterKas($entries->first()?->metode_pembayaran);
     }
 }

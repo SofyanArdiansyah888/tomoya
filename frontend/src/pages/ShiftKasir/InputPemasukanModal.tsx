@@ -40,10 +40,10 @@ export const InputPemasukanModal = ({
   }
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Sesuaikan Pemasukan Shift" size="sm">
+    <Modal isOpen={isOpen} onClose={onClose} title="Input Pemasukan Shift (Tunai)" size="sm">
       <form onSubmit={handleSubmit} className="space-y-4">
         <p className="text-sm text-gray-600">
-          Sesuaikan jumlah penjualan shift yang tercatat di arus kas jika ada selisih rekonsiliasi.
+          Catat pemasukan penjualan tunai shift ke arus kas. Nominal default mengikuti total penjualan cash.
         </p>
         <div>
           <Label htmlFor="jumlah">Jumlah *</Label>

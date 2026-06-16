@@ -135,15 +135,7 @@ class MasterKas extends Model
     }
 
     public function getMetodePembayaranLabelAttribute(): string
-    {
-        $labels = [
-            'cash' => 'Brankas',
-            'transfer' => 'Rekening',
-            'kredit' => 'Kredit',
-            'debit' => 'Debit',
-            'qris' => 'QRIS',
-        ];
-
-        return $labels[$this->metode_pembayaran] ?? $this->metode_pembayaran;
+    { 
+        return $this->metode_pembayaran === 'cash' ? 'Brankas' : 'Rekening';
     }
 }
