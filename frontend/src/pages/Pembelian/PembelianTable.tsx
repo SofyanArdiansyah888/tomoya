@@ -38,9 +38,8 @@ const formatDate = (dateString: string) => {
 
 const getPaymentMethodLabel = (method: string) => {
   const methods: Record<string, string> = {
-    cash: 'Tunai',
-    transfer: 'Transfer',
-    credit: 'Kredit'
+    cash: 'Brankas',
+    transfer: 'Rekening',
   }
   return methods[method] || method
 }

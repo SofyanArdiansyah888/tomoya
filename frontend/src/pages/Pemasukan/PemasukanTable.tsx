@@ -1,6 +1,5 @@
 import { useState } from 'react'
 import { Button } from '../../components/ui/button'
-import { Badge } from '../../components/ui/badge'
 import { Card } from '../../components/ui/card'
 import { Table } from '../../components/ui/table'
 import { TableBody } from '../../components/ui/table'
@@ -44,19 +43,6 @@ export const PemasukanTable = ({
     }
   }
 
-  const getKategoriBadgeVariant = (kategori: string) => {
-    switch (kategori) {
-      case 'pemasukan_kasir':
-        return 'default'
-      case 'pemasukan_non_kasir':
-        return 'secondary'
-      case 'lainnya':
-        return 'outline'
-      default:
-        return 'secondary'
-    }
-  }
-
   if (isLoading) {
     return (
       <Card>
@@ -92,8 +78,6 @@ export const PemasukanTable = ({
             <TableRow>
               <TableHead>No Pemasukan</TableHead>
               <TableHead>Nama</TableHead>
-              <TableHead>Kategori</TableHead>
-              <TableHead>Sub Kategori</TableHead>
               <TableHead>Jumlah</TableHead>
               <TableHead>Tanggal</TableHead>
               <TableHead>User</TableHead>
@@ -116,18 +100,6 @@ export const PemasukanTable = ({
                       </div>
                     )}
                   </div>
-                </TableCell>
-                <TableCell>
-                  <Badge variant={getKategoriBadgeVariant(pemasukan.kategori)}>
-                    {pemasukan.kategori_label}
-                  </Badge>
-                </TableCell>
-                <TableCell>
-                  {pemasukan.sub_kategori_label && (
-                    <span className="text-sm text-gray-600">
-                      {pemasukan.sub_kategori_label}
-                    </span>
-                  )}
                 </TableCell>
                 <TableCell>
                   <span className="font-medium text-green-600">

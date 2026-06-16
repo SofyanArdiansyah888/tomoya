@@ -1,0 +1,4 @@
+127.0.0.1   tomoya.appsku
+
+# Opsional: test domain tunnel dari PC kasir tanpa DNS publik
+# 127.0.0.1   tomoya4management.net

@@ -9,10 +9,12 @@ import { SearchInput } from '../../components/ui/search-input'
 import { Modal } from '../../components/ui/modal'
 import { useToast } from '../../hooks/useToast'
 import { formatPrice } from '../../lib/formatPrice'
+import { getCurrentMonthDateRange } from '../../lib/utils'
 import { pemasukanService } from '../../services/pemasukan'
 import { CreatePemasukanRequest, UpdatePemasukanRequest, Pemasukan, PemasukanFilters } from '../../types/pemasukan'
 
 export const DaftarPemasukan = () => {
+  const defaultMonthRange = getCurrentMonthDateRange()
   const [pemasukans, setPemasukans] = useState<Pemasukan[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -22,16 +24,13 @@ export const DaftarPemasukan = () => {
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState('')
-  const [kategoriFilter, setKategoriFilter] = useState('')
-  const [subKategoriFilter, setSubKategoriFilter] = useState('')
-  const [dateFromFilter, setDateFromFilter] = useState('')
-  const [dateToFilter, setDateToFilter] = useState('')
+  const [dateFromFilter, setDateFromFilter] = useState(defaultMonthRange.from)
+  const [dateToFilter, setDateToFilter] = useState(defaultMonthRange.to)
   const [sortFilter, setSortFilter] = useState('tanggal-desc')
   
   const [stats, setStats] = useState({
     total_pemasukan: 0,
     total_transaksi: 0,
-    pemasukan_by_kategori: {} as Record<string, number>
   })
 
   const { toast } = useToast()
@@ -43,8 +42,6 @@ export const DaftarPemasukan = () => {
       // Build filters object
       const filters: PemasukanFilters = {
         search: searchTerm || undefined,
-        kategori: kategoriFilter || undefined,
-        sub_kategori: subKategoriFilter || undefined,
         tanggal_dari: dateFromFilter || undefined,
         tanggal_sampai: dateToFilter || undefined,
         sort_by: sortFilter.split('-')[0],
@@ -81,23 +78,18 @@ export const DaftarPemasukan = () => {
         setStats({
           total_pemasukan: Number(response.total_pemasukan) || 0,
           total_transaksi: Number(response.total_transaksi) || 0,
-          pemasukan_by_kategori: response.pemasukan_by_kategori || {}
         })
       } else {
-        // If response is not in expected format, set defaults
         setStats({
           total_pemasukan: 0,
           total_transaksi: 0,
-          pemasukan_by_kategori: {}
         })
       }
     } catch (error) {
       console.error('Error loading stats:', error)
-      // Set default values on error
       setStats({
         total_pemasukan: 0,
         total_transaksi: 0,
-        pemasukan_by_kategori: {}
       })
     }
   }
@@ -106,7 +98,7 @@ export const DaftarPemasukan = () => {
   React.useEffect(() => {
     loadPemasukans()
     loadStats()
-  }, [searchTerm, kategoriFilter, subKategoriFilter, dateFromFilter, dateToFilter, sortFilter])
+  }, [searchTerm, dateFromFilter, dateToFilter, sortFilter])
 
   // Handle create/update
   const handleSubmit = async (data: CreatePemasukanRequest) => {
@@ -189,11 +181,10 @@ export const DaftarPemasukan = () => {
 
   // Handle reset filters
   const handleResetFilters = () => {
+    const monthRange = getCurrentMonthDateRange()
     setSearchTerm('')
-    setKategoriFilter('')
-    setSubKategoriFilter('')
-    setDateFromFilter('')
-    setDateToFilter('')
+    setDateFromFilter(monthRange.from)
+    setDateToFilter(monthRange.to)
     setSortFilter('tanggal-desc')
   }
 
@@ -212,7 +203,7 @@ export const DaftarPemasukan = () => {
       </div>
 
       {/* Statistics Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
             <CardTitle className="text-sm font-medium">Total Pemasukan</CardTitle>
@@ -236,37 +227,13 @@ export const DaftarPemasukan = () => {
             </div>
           </CardContent>
         </Card>
-
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Kategori Terbanyak</CardTitle>
-            <span className="text-2xl">📈</span>
-          </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold capitalize">
-              {stats.pemasukan_by_kategori && Object.keys(stats.pemasukan_by_kategori).length > 0
-                ? Object.entries(stats.pemasukan_by_kategori)
-                  .sort(([, a], [, b]) => (b as number) - (a as number))[0][0]
-                  .replace(/_/g, ' ')
-                  .replace(/\b\w/g, l => l.toUpperCase())
-                : '-'
-              }
-            </div>
-            <p className="text-xs text-gray-500 mt-1">
-              {stats.pemasukan_by_kategori && Object.keys(stats.pemasukan_by_kategori).length > 0
-                ? `Rp ${formatPrice(Object.entries(stats.pemasukan_by_kategori).sort(([, a], [, b]) => (b as number) - (a as number))[0][1] as number)}`
-                : ''
-              }
-            </p>
-          </CardContent>
-        </Card>
       </div>
 
       {/* Filters */}
       <Card>
         <CardContent className="p-4 md:p-6">
           <div className="flex justify-between items-start gap-4 mb-4">
-            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+            <div className="flex-1 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               <div className="w-full min-w-0">
                 <SearchInput
                   label="Cari Pemasukan"
@@ -274,51 +241,6 @@ export const DaftarPemasukan = () => {
                   value={searchTerm}
                   onChange={setSearchTerm}
                 />
-              </div>
-
-              <div className="w-full min-w-0">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Kategori
-                </label>
-                <select
-                  value={kategoriFilter}
-                  onChange={(e) => setKategoriFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                >
-                  <option value="">Semua Kategori</option>
-                  <option value="pemasukan_non_kasir">Pemasukan Non Kasir</option>
-                  <option value="lainnya">Lainnya</option>
-                </select>
-              </div>
-
-              <div className="w-full min-w-0">
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Sub Kategori
-                </label>
-                <select
-                  value={subKategoriFilter}
-                  onChange={(e) => setSubKategoriFilter(e.target.value)}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
-                >
-                  <option value="">Semua Sub Kategori</option>
-                  {kategoriFilter === 'pemasukan_kasir' && (
-                    <>
-                      <option value="penjualan_kasir">Penjualan Kasir</option>
-                    </>
-                  )}
-                  {kategoriFilter === 'pemasukan_non_kasir' && (
-                    <>
-                      <option value="investasi">Investasi</option>
-                      <option value="hibah">Hibah</option>
-                      <option value="refund_penjualan">Refund Penjualan</option>
-                    </>
-                  )}
-                  {kategoriFilter === 'lainnya' && (
-                    <>
-                      <option value="lainnya">Lainnya</option>
-                    </>
-                  )}
-                </select>
               </div>
 
               <div className="w-full min-w-0">
@@ -402,14 +324,6 @@ export const DaftarPemasukan = () => {
                 <p className="text-lg font-bold text-green-600">
                   {formatPrice(viewingPemasukan.jumlah)}
                 </p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Kategori</label>
-                <p className="text-lg">{viewingPemasukan.kategori_label}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Sub Kategori</label>
-                <p className="text-lg">{viewingPemasukan.sub_kategori_label || '-'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">Tanggal</label>

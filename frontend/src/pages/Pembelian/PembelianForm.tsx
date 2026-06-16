@@ -25,7 +25,7 @@ interface PembelianFormProps {
     lokasi_id: number
     tanggal_pembelian: string
     catatan?: string
-    metode_pembayaran: 'cash' | 'transfer' | 'credit'
+    metode_pembayaran: 'cash' | 'transfer'
     items: Array<{
       material_id: number
       quantity: number
@@ -49,7 +49,7 @@ export const PembelianForm = ({
     lokasi_id: '1', // Default to gudang (id: 1)
     tanggal_pembelian: new Date().toISOString().split('T')[0],
     catatan: '',
-    metode_pembayaran: 'cash' as 'cash' | 'transfer' | 'credit',
+    metode_pembayaran: 'cash' as 'cash' | 'transfer',
     items: [] as Array<{
       id: number
       material_id: number
@@ -113,7 +113,7 @@ export const PembelianForm = ({
     }))
   }
 
-  const handleInputChange = (field: string, value: string | number | 'cash' | 'transfer' | 'credit') => {
+  const handleInputChange = (field: string, value: string | number | 'cash' | 'transfer') => {
     setFormData(prev => ({
       ...prev,
       [field]: value
@@ -186,13 +186,12 @@ export const PembelianForm = ({
           </label>
           <select
             value={formData.metode_pembayaran}
-            onChange={(e) => handleInputChange('metode_pembayaran', e.target.value as 'cash' | 'transfer' | 'credit')}
+            onChange={(e) => handleInputChange('metode_pembayaran', e.target.value as 'cash' | 'transfer')}
             className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-amber-500"
             required
           >
-            <option value="cash">Cash</option>
-            <option value="transfer">Transfer</option>
-            <option value="credit">Credit</option>
+            <option value="cash">Brankas</option>
+            <option value="transfer">Rekening</option>
           </select>
         </div>
       </div>

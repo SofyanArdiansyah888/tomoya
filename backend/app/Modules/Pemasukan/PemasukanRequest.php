@@ -28,9 +28,9 @@ class PemasukanRequest extends FormRequest
             'sub_kategori' => 'nullable|string',
             'nama' => 'required|string|max:255',
             'deskripsi' => 'nullable|string',
-            'jumlah' => 'required|numeric|min:0',
+            'jumlah' => 'required|numeric|min:0', 
             'tanggal' => 'required|date',
-            'metode_pembayaran' => 'required|in:cash,transfer,kredit,debit,qris',
+            'metode_pembayaran' => 'required|in:cash,transfer',
             'referensi' => 'nullable|string|max:255',
             'bukti_pembayaran' => 'nullable|string|max:255',
             'is_active' => 'sometimes|boolean'

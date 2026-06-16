@@ -19,8 +19,9 @@ class ArusKas extends Model
         'jumlah' => 'decimal:2',
         'subtotal' => 'decimal:2',
         'uang_dibayar' => 'decimal:2',
-        'kembalian' => 'decimal:2',
-        'status' => 'boolean', 
+        'kembalian' => 'decimal:2', 
+        'status' => 'boolean',
+        'masuk_master_kas' => 'boolean',
     ];
 
     protected static function boot()
@@ -60,6 +61,11 @@ class ArusKas extends Model
     public function shiftKasir(): BelongsTo
     {
         return $this->belongsTo(ShiftKasir::class);
+    } 
+
+    public function masterKas(): BelongsTo
+    {
+        return $this->belongsTo(MasterKas::class, 'master_kas_id');
     }
 
     // Scopes

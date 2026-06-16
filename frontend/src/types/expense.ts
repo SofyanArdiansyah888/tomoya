@@ -12,7 +12,7 @@ export interface Pengeluaran {
   jumlah: number;
   jumlah_formatted: string;
   tanggal: string;
-  metode_pembayaran: 'cash' | 'transfer' | 'kredit' | 'debit' | 'qris';
+  metode_pembayaran: 'cash' | 'transfer';
   metode_pembayaran_label: string;
   referensi?: string;
   bukti_pembayaran?: string;
@@ -39,7 +39,7 @@ export interface CreatePengeluaranRequest {
   deskripsi?: string;
   jumlah: number;
   tanggal: string;
-  metode_pembayaran: 'cash' | 'transfer' | 'kredit' | 'debit' | 'qris';
+  metode_pembayaran: 'cash' | 'transfer';
   referensi?: string;
   bukti_pembayaran?: string;
   is_active?: boolean;
@@ -110,9 +110,6 @@ export const PENGELUARAN_SUB_KATEGORI_OPTIONS = [
 
 
 export const PENGELUARAN_METODE_PEMBAYARAN_OPTIONS = [
-  { value: 'cash', label: 'Cash' },
-  { value: 'transfer', label: 'Transfer' },
-  { value: 'kredit', label: 'Kredit' },
-  { value: 'debit', label: 'Debit' },
-  { value: 'qris', label: 'QRIS' }
+  { value: 'cash', label: 'Brankas' },
+  { value: 'transfer', label: 'Rekening' },
 ];

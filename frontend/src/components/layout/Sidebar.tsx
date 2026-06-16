@@ -22,7 +22,8 @@ import {
   Clock,
   Calculator,
   FileText,
-  Settings
+  Settings,
+  Wallet
 } from 'lucide-react'
 import { Button } from '../ui/button'
 import { useAuth, useLogout } from '../../hooks/useAuth'
@@ -85,6 +86,7 @@ export const Sidebar = ({ isOpen = true, onClose }: SidebarProps) => {
       group: 'Pembelian & Keuangan',
       items: [
         { name: 'Pembelian', href: '/pembelian', icon: CreditCard },
+        { name: 'Master Kas', href: '/master-kas', icon: Wallet },
         { name: 'Arus Kas', href: '/arus-kas', icon: DollarSign },
         { name: 'Pengeluaran', href: '/pengeluaran', icon: TrendingDown },
         { name: 'Pemasukan', href: '/pemasukan', icon: TrendingUpIcon },

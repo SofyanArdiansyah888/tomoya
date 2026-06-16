@@ -3,7 +3,7 @@
 namespace App\Modules\Pengeluaran;
 
 use App\Models\Pengeluaran;
-use App\Models\ArusKas;
+use App\Models\MasterKas;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Modules\Pengeluaran\PengeluaranRequest;
@@ -107,26 +107,23 @@ class PengeluaranController extends Controller
             }
 
             $pengeluaran = Pengeluaran::create($dataToCreate);
-
-            // Map metode_pembayaran: kredit -> kredit (already correct)
-            $metodePembayaranArusKas = $pengeluaran->metode_pembayaran;
-
-            // Create arus kas (pengeluaran)
-            ArusKas::create([
+ 
+            // Create master kas (pengeluaran)
+            MasterKas::create([
                 'user_id' => $pengeluaran->user_id,
                 'lokasi_id' => $lokasiId,
                 'shift_id' => $shiftAktif ? $shiftAktif->id : null,
                 'jenis' => 'pengeluaran',
                 'kategori' => $pengeluaran->kategori,
-                'sub_kategori' => $pengeluaran->sub_kategori,
+                'sub_kategori' => null,
                 'jumlah' => $pengeluaran->jumlah,
                 'deskripsi' => $pengeluaran->nama . ($pengeluaran->deskripsi ? ': ' . $pengeluaran->deskripsi : ''),
                 'tanggal' => $pengeluaran->tanggal,
                 'referensi_id' => $pengeluaran->id,
                 'referensi_type' => Pengeluaran::class,
-                'metode_pembayaran' => $metodePembayaranArusKas,
+                'metode_pembayaran' => $pengeluaran->metode_pembayaran,
                 'status' => true,
-            ]); 
+            ]);
 
             DB::commit();
 
@@ -176,35 +173,34 @@ class PengeluaranController extends Controller
 
             $lokasiId = $pengeluaran->lokasi_id;
 
-            // Update arus kas if exists
-            $arusKas = ArusKas::where('referensi_type', Pengeluaran::class)
+            // Update master kas if exists
+            $masterKas = MasterKas::where('referensi_type', Pengeluaran::class)
                 ->where('referensi_id', $pengeluaran->id)
                 ->first();
 
-            if ($arusKas) {
-                $arusKas->update([
+            if ($masterKas) {
+                $masterKas->update([
                     'lokasi_id' => $lokasiId,
                     'kategori' => $pengeluaran->kategori,
-                    'sub_kategori' => $pengeluaran->sub_kategori,
+                    'sub_kategori' => null,
                     'jumlah' => $pengeluaran->jumlah,
                     'deskripsi' => $pengeluaran->nama . ($pengeluaran->deskripsi ? ': ' . $pengeluaran->deskripsi : ''),
                     'tanggal' => $pengeluaran->tanggal,
                     'metode_pembayaran' => $pengeluaran->metode_pembayaran,
                 ]);
             } else {
-                // Create arus kas if not exists (for old records)
-                ArusKas::create([
+                MasterKas::create([
                     'user_id' => $pengeluaran->user_id,
                     'lokasi_id' => $lokasiId,
                     'jenis' => 'pengeluaran',
                     'kategori' => $pengeluaran->kategori,
-                    'sub_kategori' => $pengeluaran->sub_kategori,
+                    'sub_kategori' => null,
                     'jumlah' => $pengeluaran->jumlah,
                     'deskripsi' => $pengeluaran->nama . ($pengeluaran->deskripsi ? ': ' . $pengeluaran->deskripsi : ''),
                     'tanggal' => $pengeluaran->tanggal,
                     'referensi_id' => $pengeluaran->id,
                     'referensi_type' => Pengeluaran::class,
-                    'metode_pembayaran' => $pengeluaran->metode_pembayaran, 
+                    'metode_pembayaran' => $pengeluaran->metode_pembayaran,
                     'status' => true,
                 ]);
             }
@@ -233,8 +229,8 @@ class PengeluaranController extends Controller
 
             $pengeluaran = Pengeluaran::findOrFail($id);
 
-            // Hapus arus kas terkait
-            ArusKas::where('referensi_type', Pengeluaran::class)
+            // Hapus master kas terkait
+            MasterKas::where('referensi_type', Pengeluaran::class)
                 ->where('referensi_id', $pengeluaran->id)
                 ->delete();
 

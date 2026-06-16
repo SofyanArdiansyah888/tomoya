@@ -12,7 +12,7 @@ export interface Pemasukan {
   jumlah: number;
   jumlah_formatted: string;
   tanggal: string;
-  metode_pembayaran: 'cash' | 'transfer' | 'kredit' | 'debit' | 'qris';
+  metode_pembayaran: 'cash' | 'transfer';
   metode_pembayaran_label: string;
   referensi?: string;
   bukti_pembayaran?: string;
@@ -39,7 +39,7 @@ export interface CreatePemasukanRequest {
   deskripsi?: string;
   jumlah: number;
   tanggal: string;
-  metode_pembayaran: 'cash' | 'transfer' | 'kredit' | 'debit' | 'qris';
+  metode_pembayaran: 'cash' | 'transfer';
   referensi?: string;
   bukti_pembayaran?: string;
   is_active?: boolean;
@@ -105,9 +105,6 @@ export const PEMASUKAN_SUB_KATEGORI_OPTIONS = [
 ];
 
 export const PEMASUKAN_METODE_PEMBAYARAN_OPTIONS = [
-  { value: 'cash', label: 'Cash' },
-  { value: 'transfer', label: 'Transfer' },
-  { value: 'kredit', label: 'Kredit' },
-  { value: 'debit', label: 'Debit' },
-  { value: 'qris', label: 'QRIS' }
+  { value: 'cash', label: 'Brankas' },
+  { value: 'transfer', label: 'Rekening' },
 ];

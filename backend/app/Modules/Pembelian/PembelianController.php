@@ -4,7 +4,7 @@ namespace App\Modules\Pembelian;
 
 use App\Models\Pembelian;
 use App\Models\ItemLokasi;
-use App\Models\ArusKas;
+use App\Models\MasterKas;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Modules\Pembelian\PembelianRequest;
@@ -161,12 +161,9 @@ class PembelianController extends Controller
 
             // Update total harga
             $pembelian->updateTotalHarga();
-
-            // Create arus kas (pengeluaran dari pembelian)
-            // Map metode_pembayaran: cash, transfer, credit -> cash, transfer, kredit
-            $metodePembayaranArusKas = $pembelian->metode_pembayaran === 'credit' ? 'kredit' : $pembelian->metode_pembayaran;
-
-            ArusKas::create([
+ 
+            // Create master kas (pengeluaran dari pembelian)
+            MasterKas::create([
                 'user_id' => $pembelian->user_id,
                 'lokasi_id' => $lokasiId,
                 'shift_id' => $shiftAktif ? $shiftAktif->id : null,
@@ -178,9 +175,9 @@ class PembelianController extends Controller
                 'tanggal' => $pembelian->tanggal_pembelian,
                 'referensi_id' => $pembelian->id,
                 'referensi_type' => Pembelian::class,
-                'metode_pembayaran' => $metodePembayaranArusKas,
+                'metode_pembayaran' => $pembelian->metode_pembayaran,
                 'status' => true,
-            ]); 
+            ]);
 
             DB::commit();
 
@@ -296,38 +293,32 @@ class PembelianController extends Controller
             // Refresh untuk mendapatkan total_harga terbaru
             $pembelian->refresh();
 
-            // Update arus kas jika total harga atau metode pembayaran berubah
-            $arusKas = ArusKas::where('referensi_type', Pembelian::class)
+            // Update master kas jika total harga atau metode pembayaran berubah
+            $masterKas = MasterKas::where('referensi_type', Pembelian::class)
                 ->where('referensi_id', $pembelian->id)
                 ->first();
 
-            if ($arusKas) {
-                // Map metode_pembayaran: cash, transfer, credit -> cash, transfer, kredit
-                $metodePembayaranArusKas = $pembelian->metode_pembayaran === 'credit' ? 'kredit' : $pembelian->metode_pembayaran;
-
-                $arusKas->update([
+            if ($masterKas) {
+                $masterKas->update([
                     'lokasi_id' => $lokasiId,
                     'jumlah' => $pembelian->total_harga,
                     'deskripsi' => "Pembelian Bahan Baku #{$pembelian->no_pembelian}",
                     'tanggal' => $pembelian->tanggal_pembelian,
-                    'metode_pembayaran' => $metodePembayaranArusKas,
+                    'metode_pembayaran' => $pembelian->metode_pembayaran,
                 ]);
             } else {
-                // Create arus kas jika belum ada (untuk pembelian lama yang belum punya arus kas)
-                $metodePembayaranArusKas = $pembelian->metode_pembayaran === 'credit' ? 'kredit' : $pembelian->metode_pembayaran;
-
-                ArusKas::create([
+                MasterKas::create([
                     'user_id' => $pembelian->user_id,
                     'lokasi_id' => $lokasiId,
                     'jenis' => 'pengeluaran',
                     'kategori' => 'pembelian_bahan_baku',
-                    'sub_kategori' => 'bahan_mentah',
+                    'sub_kategori' => 'pembelian_bahan',
                     'jumlah' => $pembelian->total_harga,
                     'deskripsi' => "Pembelian Bahan Baku #{$pembelian->no_pembelian}",
                     'tanggal' => $pembelian->tanggal_pembelian,
                     'referensi_id' => $pembelian->id,
                     'referensi_type' => Pembelian::class,
-                    'metode_pembayaran' => $metodePembayaranArusKas, 
+                    'metode_pembayaran' => $pembelian->metode_pembayaran,
                     'status' => true,
                 ]);
             }
@@ -380,8 +371,8 @@ class PembelianController extends Controller
                 ]);
             }
 
-            // Hapus arus kas terkait
-            ArusKas::where('referensi_type', Pembelian::class)
+            // Hapus master kas terkait
+            MasterKas::where('referensi_type', Pembelian::class)
                 ->where('referensi_id', $pembelian->id)
                 ->delete();
 

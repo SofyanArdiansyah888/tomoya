@@ -1,4 +1,4 @@
-import { TrendingDown, TrendingUp, DollarSign, BarChart3 } from 'lucide-react'
+import { TrendingUp, BarChart3 } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { formatPrice } from '../../lib/formatPrice'
 import { CashFlowStats } from '../../types/cashflow'
@@ -9,7 +9,7 @@ interface ArusKasStatsProps {
 
 export const ArusKasStats = ({ stats }: ArusKasStatsProps) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Pemasukan</CardTitle>
@@ -21,31 +21,7 @@ export const ArusKasStats = ({ stats }: ArusKasStatsProps) => {
           </div>
         </CardContent>
       </Card>
-      
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Total Pengeluaran</CardTitle>
-          <TrendingDown className="h-4 w-4 text-red-500" />
-        </CardHeader>
-        <CardContent>
-          <div className="text-2xl font-bold text-red-600">
-            {stats ? formatPrice(stats.total_pengeluaran) : 'Rp 0'}
-          </div>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-          <CardTitle className="text-sm font-medium">Saldo Bersih</CardTitle>
-          <DollarSign className="h-4 w-4 text-blue-500" />
-        </CardHeader>
-        <CardContent>
-          <div className={`text-2xl font-bold ${stats && stats.saldo_bersih >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-            {stats ? formatPrice(stats.saldo_bersih) : 'Rp 0'}
-          </div>
-        </CardContent>
-      </Card>
-      
+
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <CardTitle className="text-sm font-medium">Total Transaksi</CardTitle>

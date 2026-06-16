@@ -1,21 +1,14 @@
 import axios from 'axios'
+import { getApiBaseUrl } from '../utils/apiUrl'
 
-// Production: langsung ke server backend
-// Development: gunakan VITE_API_URL dari .env
-const API_BASE_URL = import.meta.env.VITE_API_URL
+const API_BASE_URL = getApiBaseUrl()
 
-// Debug: log API URL untuk memastikan env variable terbaca
 if (import.meta.env.DEV) {
   console.log('🔧 API_BASE_URL:', API_BASE_URL)
-  console.log('🔧 VITE_API_URL from env:', import.meta.env.VITE_API_URL)
-}
-
-if (!API_BASE_URL) {
-  console.error('❌ VITE_API_URL tidak terdefinisi! Pastikan file .env ada dan berisi VITE_API_URL=...')
 }
 
 export const api = axios.create({
-  baseURL: API_BASE_URL || 'https://tomoya4management.net/api',
+  baseURL: API_BASE_URL,
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',

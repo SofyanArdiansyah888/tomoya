@@ -1,14 +1,20 @@
 import { DollarSign, Calendar, Package, TrendingDown, TrendingUp } from 'lucide-react'
+import { toast } from 'sonner'
 import { Badge } from '../../components/ui/badge'
 import { Card, CardContent, CardHeader, CardTitle } from '../../components/ui/card'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '../../components/ui/table'
-import { ArusKas } from '../../types/cashflow'
+import { ArusKas, isCashMetode, sameMetodeRecapGroup } from '../../types/cashflow'
 import { formatPrice } from '../../lib/formatPrice'
+
+export type SelectionMode = 'add' | 'remove' | null
 
 interface ArusKasTableProps {
   cashFlows: ArusKas[]
   isLoading: boolean
   error?: Error | null
+  selectedIds: number[]
+  selectionMode: SelectionMode
+  onSelectionChange: (ids: number[], mode: SelectionMode) => void
 }
 
 const getJenisBadgeVariant = (jenis: string) => {
@@ -30,8 +36,64 @@ const getJenisTextColor = (jenis: string) => {
 export const ArusKasTable = ({
   cashFlows,
   isLoading,
-  error
+  error,
+  selectedIds,
+  selectionMode,
+  onSelectionChange,
 }: ArusKasTableProps) => {
+  const addSelectable = cashFlows.filter(cf => !cf.masuk_master_kas)
+  const removeSelectable = cashFlows.filter(cf => cf.masuk_master_kas)
+
+  const currentPool = selectionMode === 'remove' ? removeSelectable : addSelectable
+  const currentPoolIds = currentPool.map(cf => cf.id)
+  const allCurrentSelected = currentPoolIds.length > 0 && currentPoolIds.every(id => selectedIds.includes(id))
+
+  const handleSelectAll = () => {
+    const mode: SelectionMode = selectionMode === 'remove' ? 'remove' : 'add'
+    if (allCurrentSelected) {
+      onSelectionChange([], null)
+    } else {
+      onSelectionChange(currentPoolIds, mode)
+    }
+  }
+
+  const handleToggle = (cashFlow: ArusKas, checked: boolean) => {
+    const isAdd = !cashFlow.masuk_master_kas
+    const mode: SelectionMode = isAdd ? 'add' : 'remove'
+
+    if (checked) {
+      if (selectionMode && selectionMode !== mode) {
+        toast.error(isAdd
+          ? 'Kosongkan pilihan keluarkan terlebih dahulu'
+          : 'Kosongkan pilihan recap terlebih dahulu')
+        return
+      }
+
+      if (mode === 'add' && selectedIds.length > 0) {
+        const first = cashFlows.find(c => c.id === selectedIds[0])
+        if (first) {
+          if (first.jenis !== cashFlow.jenis) {
+            toast.error('Recap hanya boleh dari jenis yang sama (pemasukan atau pengeluaran)')
+            return
+          }
+          if (first.lokasi_id !== cashFlow.lokasi_id) {
+            toast.error('Recap hanya boleh dari lokasi yang sama')
+            return
+          }
+          if (!sameMetodeRecapGroup(first.metode_pembayaran, cashFlow.metode_pembayaran)) {
+            toast.error('Recap hanya boleh dari metode pembayaran yang sama (Cash atau Non Cash)')
+            return
+          }
+        }
+      }
+
+      onSelectionChange([...selectedIds, cashFlow.id], mode)
+    } else {
+      const next = selectedIds.filter(i => i !== cashFlow.id)
+      onSelectionChange(next, next.length > 0 ? mode : null)
+    }
+  }
+
   if (error) {
     return (
       <Card>
@@ -44,9 +106,6 @@ export const ArusKasTable = ({
             <h3 className="text-lg font-medium text-gray-900 mb-2">Error Loading Data</h3>
             <p className="text-red-500 mb-4">
               {error.message || 'Terjadi kesalahan saat memuat data arus kas'}
-            </p>
-            <p className="text-sm text-gray-500">
-              Silakan coba lagi atau hubungi administrator jika masalah berlanjut
             </p>
           </div>
         </CardContent>
@@ -100,19 +159,37 @@ export const ArusKasTable = ({
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead className="w-[40px]">
+                  <input
+                    type="checkbox"
+                    checked={allCurrentSelected}
+                    onChange={handleSelectAll}
+                    disabled={currentPoolIds.length === 0}
+                    className="h-4 w-4 rounded border-gray-300"
+                    title="Pilih semua (mode recap atau keluarkan)"
+                  />
+                </TableHead>
                 <TableHead className='w-[150px]'>Tanggal</TableHead>
                 <TableHead>Deskripsi</TableHead>
                 <TableHead>Jenis</TableHead>
                 <TableHead>Kategori & Sub Kategori</TableHead>
                 <TableHead>User</TableHead>
                 <TableHead>Metode Pembayaran</TableHead>
-                {/* <TableHead>Lokasi</TableHead> */}
+                <TableHead>Master Kas</TableHead>
                 <TableHead className="text-right w-[150px]">Jumlah</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {cashFlows.map((cashFlow) => (
                 <TableRow key={cashFlow.id}>
+                  <TableCell>
+                    <input
+                      type="checkbox"
+                      checked={selectedIds.includes(cashFlow.id)}
+                      onChange={(e) => handleToggle(cashFlow, e.target.checked)}
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                  </TableCell>
                   <TableCell>
                     <div className="flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-gray-400" />
@@ -153,21 +230,17 @@ export const ArusKasTable = ({
                     <span className="text-sm text-gray-900">{cashFlow.user?.name || '-'}</span>
                   </TableCell>
                   <TableCell>
-                    <div className="flex items-center gap-2">
-                      <span>
-                        {cashFlow.metode_pembayaran === 'cash' ? 'Cash' : 'Non Cash'}
-                      </span>
-                    </div>
+                    <span>
+                      {isCashMetode(cashFlow.metode_pembayaran) ? 'Cash' : 'Non Cash'}
+                    </span>
                   </TableCell>
-                  {/* <TableCell>
-                    {(cashFlow.lokasi || cashFlow.toko) ? (
-                      <span className="text-sm text-gray-600">
-                        {(cashFlow.lokasi || cashFlow.toko)?.nama}
-                      </span>
+                  <TableCell>
+                    {cashFlow.masuk_master_kas ? (
+                      <Badge variant="default" className="text-xs">Sudah masuk</Badge>
                     ) : (
-                      <span className="text-gray-400">-</span>
+                      <span className="text-gray-400 text-xs">-</span>
                     )}
-                  </TableCell> */}
+                  </TableCell>
                   <TableCell className="text-right">
                     <span className={`font-semibold ${getJenisTextColor(cashFlow.jenis)}`}>
                       {formatPrice(cashFlow.jumlah)}
@@ -182,4 +255,3 @@ export const ArusKasTable = ({
     </Card>
   )
 }
-
