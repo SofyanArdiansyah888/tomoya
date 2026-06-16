@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Card, CardContent } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
+import { NumericInput } from '../../components/ui/NumericInput'
 import { Button } from '../../components/ui/button'
 import { Modal } from '../../components/ui/modal'
 import { Search, Edit } from 'lucide-react'
@@ -328,10 +329,11 @@ const AdjustStokModal = ({
           <label className="block text-sm font-medium text-gray-700 mb-2">
             Quantity Adjustment *
           </label>
-          <Input
-            type="number"
+          <NumericInput
+            asString
+            allowNegative
             value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
+            onChange={setQuantity}
             placeholder="Masukkan quantity (positif untuk tambah, negatif untuk kurang)"
             required
             disabled={!selectedMaterialId || loadingStock}

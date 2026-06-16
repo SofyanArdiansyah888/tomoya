@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Button } from '../ui/button'
-import { Input } from '../ui/input'
+import { NumericInput } from '../ui/NumericInput'
 
 interface InventoryFormProps {
   item?: any
@@ -45,10 +45,10 @@ export const InventoryForm = ({ item, onSave, onCancel, isLoading = false }: Inv
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Stok Saat Ini *
           </label>
-          <Input
-            type="number"
+          <NumericInput
+            asString
             value={formData.currentStock}
-            onChange={(e) => setFormData({ ...formData, currentStock: e.target.value })}
+            onChange={(value) => setFormData({ ...formData, currentStock: value })}
             placeholder="Masukkan stok saat ini"
             required
           />
@@ -58,10 +58,10 @@ export const InventoryForm = ({ item, onSave, onCancel, isLoading = false }: Inv
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Stok Minimum *
           </label>
-          <Input
-            type="number"
+          <NumericInput
+            asString
             value={formData.minStock}
-            onChange={(e) => setFormData({ ...formData, minStock: e.target.value })}
+            onChange={(value) => setFormData({ ...formData, minStock: value })}
             placeholder="Masukkan stok minimum"
             required
           />
@@ -71,10 +71,10 @@ export const InventoryForm = ({ item, onSave, onCancel, isLoading = false }: Inv
           <label className="block text-sm font-medium text-gray-700 mb-1">
             Stok Maksimum *
           </label>
-          <Input
-            type="number"
+          <NumericInput
+            asString
             value={formData.maxStock}
-            onChange={(e) => setFormData({ ...formData, maxStock: e.target.value })}
+            onChange={(value) => setFormData({ ...formData, maxStock: value })}
             placeholder="Masukkan stok maksimum"
             required
           />

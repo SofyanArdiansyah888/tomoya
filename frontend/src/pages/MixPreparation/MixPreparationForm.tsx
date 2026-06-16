@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
+import { NumericInput } from '../../components/ui/NumericInput'
 import { MaterialSelect } from '../../components/forms'
 import { itemLokasiService } from '../../services/inventory'
 import { toast } from 'sonner'
@@ -60,7 +61,6 @@ export const MixPreparationForm = ({ lokasiId, onSuccess }: MixPreparationFormPr
   }
 
   const MixInputRow = ({ index, row, lokasiId, onChangeMaterial, onChangeQuantity, onRemove }: MixInputRowProps) => {
-    const [qtyText, setQtyText] = useState<string>(row.quantity ? String(row.quantity) : '')
     const { data: stocks } = useQuery({
       queryKey: ['item-lokasi-toko-input', row.material_id],
       queryFn: () => itemLokasiService.getCurrentStock('toko'),
@@ -76,7 +76,6 @@ export const MixPreparationForm = ({ lokasiId, onSuccess }: MixPreparationFormPr
       }
     }, [stocks, row.material_id, lokasiId])
 
-
     return (
       <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_auto] gap-4 items-center">
         <div>
@@ -91,24 +90,13 @@ export const MixPreparationForm = ({ lokasiId, onSuccess }: MixPreparationFormPr
               <span className="text-xs text-gray-600">Stok saat ini: {current.qty} {current.unit}</span>
             )}
           </div>
-          <Input
-            type="text"
-            inputMode="numeric"
-            value={qtyText}
-            onChange={e => {
-              const next = e.target.value
-              if (next === '' || /^\d+$/.test(next)) {
-                setQtyText(next)
-              }
-            }}
-            onBlur={() => {
-              const val = qtyText === '' ? 0 : Number(qtyText)
-              onChangeQuantity(index, val)
-            }}
-            className={row.material_id && ((Number(qtyText) || 0) > current.qty) ? 'border-red-500' : ''}
+          <NumericInput
+            value={row.quantity}
+            onChange={(val) => onChangeQuantity(index, val)}
+            className={row.material_id && row.quantity > current.qty ? 'border-red-500' : ''}
           />
           <div className="h-4">
-            {row.material_id && ((Number(qtyText) || 0) > current.qty) && (
+            {row.material_id && row.quantity > current.qty && (
               <span className="text-xs text-red-600">Maksimal {current.qty} {current.unit}</span>
             )}
           </div>
@@ -179,7 +167,10 @@ export const MixPreparationForm = ({ lokasiId, onSuccess }: MixPreparationFormPr
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Jumlah Hasil</label>
-          <Input type="number" value={outputQuantity} onChange={e => setOutputQuantity(Number(e.target.value))} />
+          <NumericInput
+            value={outputQuantity}
+            onChange={setOutputQuantity}
+          />
           <div className="h-4" />
         </div>
       </div>

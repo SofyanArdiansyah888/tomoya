@@ -21,6 +21,7 @@ export { Label } from './label'
 export { Textarea } from './textarea'
 export { Switch } from './switch'
 export { CurrencyInput } from './CurrencyInput'
+export { NumericInput } from './NumericInput'
 export { 
   Table, 
   TableHeader, 

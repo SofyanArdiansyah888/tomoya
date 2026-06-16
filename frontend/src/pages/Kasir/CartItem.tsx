@@ -3,7 +3,7 @@ import { Button } from '../../components/ui/button'
 import { Badge } from '../../components/ui/badge'
 import { formatPrice } from '../../lib/formatPrice'
 import { Popover, PopoverContent, PopoverTrigger } from '../../components/ui/popover'
-import { Input } from '../../components/ui/input'
+import { NumericInput } from '../../components/ui/NumericInput'
 import { Label } from '../../components/ui/label'
 import { useState, useEffect } from 'react'
 
@@ -58,12 +58,9 @@ export const CartItem = ({
     onCoffeeOptionChange(item.line_id, s, defaultGrams)
   }
 
-  const handleChangeGrams = (value: string) => {
-    const num = parseFloat(value)
-    if (!isNaN(num)) {
-      setGrams(num)
-      onCoffeeOptionChange(item.line_id, strength || 'other', num)
-    }
+  const handleChangeGrams = (value: number) => {
+    setGrams(value)
+    onCoffeeOptionChange(item.line_id, strength || 'other', value)
   }
   const isCoffee = !!(item?.produk?.kategori?.nama && (
     item.produk.kategori.nama.toLowerCase().includes('coffee') ||
@@ -123,14 +120,11 @@ export const CartItem = ({
                     </div>
                     <div className="space-y-1">
                       <Label htmlFor={`grams-${item.produk_id}`} className="text-xs">Gram Kopi</Label>
-                      <Input
+                      <NumericInput
                         id={`grams-${item.produk_id}`}
-                        type="number"
-                        min={0}
-                        step={1}
-                        value={typeof grams === 'number' ? grams : ''}
+                        value={grams ?? 0}
+                        onChange={handleChangeGrams}
                         disabled={strength !== 'other'}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChangeGrams(e.target.value)}
                       />
                     </div>
                   </div>

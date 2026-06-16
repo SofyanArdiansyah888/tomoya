@@ -3,6 +3,7 @@ import { MaterialSelect } from '../../components/forms/MaterialSelect'
 import { Button } from '../../components/ui/button'
 import { Card, CardContent } from '../../components/ui/card'
 import { CurrencyInput } from '../../components/ui/CurrencyInput'
+import { NumericInput } from '../../components/ui/NumericInput'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import { Switch } from '../../components/ui/switch'
@@ -156,13 +157,12 @@ export const RecipeForm = ({ recipe, onSubmit, onCancel, isSaving = false }: Rec
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <div className="space-y-2">
           <Label htmlFor="yield_quantity">Jumlah Hasil *</Label>
-          <Input
+          <NumericInput
             id="yield_quantity"
-            type="number"
-            step="0.01"
-            min="0.01"
+            asString
+            allowDecimal
             value={formData.yield_quantity}
-            onChange={(e: React.ChangeEvent<HTMLInputElement>) => handleChange('yield_quantity', e.target.value)}
+            onChange={(value) => handleChange('yield_quantity', value)}
             placeholder="1.00"
             required
           />
@@ -224,12 +224,10 @@ export const RecipeForm = ({ recipe, onSubmit, onCancel, isSaving = false }: Rec
 
                 <div className="space-y-2">
                   <Label>Jumlah *</Label>
-                  <Input
-                    type="number"
-                    step="0.01"
-                    min="0.01"
+                  <NumericInput
+                    allowDecimal
                     value={material.quantity}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => updateMaterial(index, 'quantity', parseFloat(e.target.value))}
+                    onChange={(value) => updateMaterial(index, 'quantity', value)}
                     placeholder="0.00"
                   />
                 </div>
