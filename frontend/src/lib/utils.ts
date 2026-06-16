@@ -12,3 +12,10 @@ export function formatLocalDate(date: Date = new Date()): string {
   const day = String(date.getDate()).padStart(2, '0')
   return `${year}-${month}-${day}`
 }
+
+/** Rentang tanggal bulan berjalan (tanggal 1 s/d akhir bulan). */
+export function getCurrentMonthDateRange(date: Date = new Date()): { from: string; to: string } {
+  const from = new Date(date.getFullYear(), date.getMonth(), 1)
+  const to = new Date(date.getFullYear(), date.getMonth() + 1, 0)
+  return { from: formatLocalDate(from), to: formatLocalDate(to) }
+}

@@ -57,6 +57,10 @@ class ArusKasController extends Controller
         } elseif ($request->has('date_to') && $request->date_to) {
             $query->where('tanggal', '<=', $request->date_to);
         }
+ 
+        if ($request->has('masuk_master_kas') && $request->masuk_master_kas !== '') {
+            $query->where('masuk_master_kas', $request->boolean('masuk_master_kas'));
+        }
 
 
         // Search

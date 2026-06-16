@@ -3,7 +3,6 @@ import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { Label } from '../../components/ui/label'
 import { Textarea } from '../../components/ui/textarea'
-import { Switch } from '../../components/ui/switch'
 import { CurrencyInput } from '../../components/ui/CurrencyInput'
 import { 
   Select, 
@@ -51,7 +50,7 @@ export const PengeluaranForm = ({ pengeluaran, onSubmit, onCancel, isSaving = fa
           : 'cash',
         referensi: pengeluaran.referensi || '',
         bukti_pembayaran: pengeluaran.bukti_pembayaran || '',
-        is_active: pengeluaran.is_active,
+        is_active: true,
       })
       setSelectedKategori(pengeluaran.kategori)
     }
@@ -59,7 +58,10 @@ export const PengeluaranForm = ({ pengeluaran, onSubmit, onCancel, isSaving = fa
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    onSubmit(formData)
+    onSubmit({
+      ...formData,
+      is_active: true,
+    })
   }
 
   const handleInputChange = (field: keyof CreatePengeluaranRequest, value: any) => {
@@ -166,15 +168,6 @@ export const PengeluaranForm = ({ pengeluaran, onSubmit, onCancel, isSaving = fa
             placeholder="Deskripsi pengeluaran"
             rows={3}
           />
-        </div>
-
-        <div className="md:col-span-2 flex items-center space-x-2">
-          <Switch
-            id="is_active"
-            checked={formData.is_active}
-            onCheckedChange={(checked) => handleInputChange('is_active', checked)}
-          />
-          <Label htmlFor="is_active">Aktif</Label>
         </div>
       </div>
 

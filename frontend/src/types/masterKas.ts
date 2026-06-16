@@ -81,3 +81,8 @@ export interface MasterKasFilterOptions {
   jenis: string[];
   metode_pembayaran: string[];
 }
+
+export const MASTER_KAS_KATEGORI_BY_JENIS = {
+  pemasukan: ['pemasukan_kasir', 'lainnya'],
+  pengeluaran: ['pengeluaran_operasional', 'pengeluaran_lainnya', 'pembelian_bahan_baku'],
+} as const

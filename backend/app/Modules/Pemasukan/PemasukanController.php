@@ -149,7 +149,7 @@ class PemasukanController extends Controller
         // Kategori pemasukan sekarang sudah sama dengan kategori arus kas
         $mapping = [
             'pemasukan_kasir' => 'pemasukan_kasir',
-            'pemasukan_non_kasir' => 'pemasukan_non_kasir',
+            'pemasukan_non_kasir' => 'lainnya', 
             'lainnya' => 'lainnya',
         ];
 

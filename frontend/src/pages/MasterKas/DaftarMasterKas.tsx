@@ -1,15 +1,18 @@
-import { useState } from 'react'
-import { useMasterKas, useMasterKasStats, useMasterKasFilterOptions } from '../../hooks/useMasterKas'
+import { useMemo, useState } from 'react'
+import { useMasterKas, useMasterKasStats } from '../../hooks/useMasterKas'
+import { MASTER_KAS_KATEGORI_BY_JENIS } from '../../types/masterKas'
+import { getCurrentMonthDateRange } from '../../lib/utils'
 import { MasterKasStats } from './MasterKasStats'
 import { MasterKasFilters } from './MasterKasFilters'
 import { MasterKasTable } from './MasterKasTable'
 
 export const DaftarMasterKas = () => {
+  const defaultMonthRange = getCurrentMonthDateRange()
   const [searchTerm, setSearchTerm] = useState('')
   const [jenisFilter, setJenisFilter] = useState<string>('')
   const [kategoriFilter, setKategoriFilter] = useState<string>('')
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [dateFrom, setDateFrom] = useState(defaultMonthRange.from)
+  const [dateTo, setDateTo] = useState(defaultMonthRange.to)
   const [sortFilter] = useState('created_at-desc')
 
   const { data: masterKasData, isLoading, error } = useMasterKas({
@@ -27,16 +30,35 @@ export const DaftarMasterKas = () => {
     date_from: dateFrom || undefined,
     date_to: dateTo || undefined,
   })
-  const { data: filterOptions } = useMasterKasFilterOptions()
+  const kategoriOptions = useMemo(() => {
+    if (jenisFilter === 'pemasukan') {
+      return [...MASTER_KAS_KATEGORI_BY_JENIS.pemasukan]
+    }
+
+    if (jenisFilter === 'pengeluaran') {
+      return [...MASTER_KAS_KATEGORI_BY_JENIS.pengeluaran]
+    }
+
+    return [
+      ...MASTER_KAS_KATEGORI_BY_JENIS.pemasukan,
+      ...MASTER_KAS_KATEGORI_BY_JENIS.pengeluaran,
+    ]
+  }, [jenisFilter])
 
   const entries = masterKasData?.data || []
 
+  const handleJenisChange = (value: string) => {
+    setJenisFilter(value)
+    setKategoriFilter('')
+  }
+
   const handleResetFilters = () => {
+    const monthRange = getCurrentMonthDateRange()
     setSearchTerm('')
     setJenisFilter('')
     setKategoriFilter('')
-    setDateFrom('')
-    setDateTo('')
+    setDateFrom(monthRange.from)
+    setDateTo(monthRange.to)
   }
 
   return (
@@ -54,14 +76,14 @@ export const DaftarMasterKas = () => {
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         jenisFilter={jenisFilter}
-        onJenisChange={setJenisFilter}
+        onJenisChange={handleJenisChange}
         kategoriFilter={kategoriFilter}
         onKategoriChange={setKategoriFilter}
         dateFrom={dateFrom}
         onDateFromChange={setDateFrom}
         dateTo={dateTo}
         onDateToChange={setDateTo}
-        kategoriOptions={filterOptions?.kategoris || []}
+        kategoriOptions={kategoriOptions}
         onReset={handleResetFilters}
       />
 

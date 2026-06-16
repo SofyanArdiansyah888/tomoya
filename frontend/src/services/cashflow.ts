@@ -13,6 +13,7 @@ export const cashFlowService = {
     if (filters?.date_from) params.append('date_from', filters.date_from)
     if (filters?.date_to) params.append('date_to', filters.date_to)
     if (filters?.status !== undefined) params.append('status', String(filters.status))
+    if (filters?.masuk_master_kas !== undefined) params.append('masuk_master_kas', String(filters.masuk_master_kas))
     if (filters?.search) params.append('search', filters.search) 
     if (filters?.sort_by) params.append('sort_by', filters.sort_by)
     if (filters?.sort_order) params.append('sort_order', filters.sort_order)

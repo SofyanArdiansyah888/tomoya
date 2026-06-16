@@ -9,10 +9,12 @@ import { SearchInput } from '../../components/ui/search-input'
 import { Modal } from '../../components/ui/modal'
 import { useToast } from '../../hooks/useToast'
 import { formatPrice } from '../../lib/formatPrice'
+import { getCurrentMonthDateRange } from '../../lib/utils'
 import { expenseService } from '../../services/expense'
 import { CreatePengeluaranRequest, UpdatePengeluaranRequest, Pengeluaran, PengeluaranFilters } from '../../types/expense'
 
 export const DaftarPengeluaran = () => {
+  const defaultMonthRange = getCurrentMonthDateRange()
   const [pengeluarans, setPengeluarans] = useState<Pengeluaran[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -23,8 +25,8 @@ export const DaftarPengeluaran = () => {
   // Filter states
   const [searchTerm, setSearchTerm] = useState('')
   const [kategoriFilter, setKategoriFilter] = useState('')
-  const [dateFromFilter, setDateFromFilter] = useState('')
-  const [dateToFilter, setDateToFilter] = useState('')
+  const [dateFromFilter, setDateFromFilter] = useState(defaultMonthRange.from)
+  const [dateToFilter, setDateToFilter] = useState(defaultMonthRange.to)
   const [sortFilter, setSortFilter] = useState('tanggal-desc')
   
   const [stats, setStats] = useState({
@@ -174,10 +176,11 @@ export const DaftarPengeluaran = () => {
 
   // Handle reset filters
   const handleResetFilters = () => {
+    const monthRange = getCurrentMonthDateRange()
     setSearchTerm('')
     setKategoriFilter('')
-    setDateFromFilter('')
-    setDateToFilter('')
+    setDateFromFilter(monthRange.from)
+    setDateToFilter(monthRange.to)
     setSortFilter('tanggal-desc')
   }
 
@@ -354,10 +357,6 @@ export const DaftarPengeluaran = () => {
               <div>
                 <label className="text-sm font-medium text-gray-500">Kategori</label>
                 <p className="text-lg">{viewingPengeluaran.kategori_label}</p>
-              </div>
-              <div>
-                <label className="text-sm font-medium text-gray-500">Sub Kategori</label>
-                <p className="text-lg">{viewingPengeluaran.sub_kategori_label || '-'}</p>
               </div>
               <div>
                 <label className="text-sm font-medium text-gray-500">Tanggal</label>

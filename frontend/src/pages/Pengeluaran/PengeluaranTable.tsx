@@ -98,7 +98,6 @@ export const PengeluaranTable = ({
               <TableHead>No Pengeluaran</TableHead>
               <TableHead>Nama</TableHead>
               <TableHead>Kategori</TableHead>
-              <TableHead>Sub Kategori</TableHead>
               <TableHead>Jumlah</TableHead>
               <TableHead>Tanggal</TableHead>
               <TableHead>User</TableHead>
@@ -126,13 +125,6 @@ export const PengeluaranTable = ({
                   <Badge variant={getKategoriBadgeVariant(pengeluaran.kategori)}>
                     {pengeluaran.kategori_label}
                   </Badge>
-                </TableCell>
-                <TableCell>
-                  {pengeluaran.sub_kategori_label && (
-                    <span className="text-sm text-gray-600">
-                      {pengeluaran.sub_kategori_label}
-                    </span>
-                  )}
                 </TableCell>
                 <TableCell>
                   <span className="font-medium text-red-600">

@@ -65,6 +65,7 @@ export interface CashFlowFilters {
   date_to?: string;
   search?: string;
   status?: boolean;
+  masuk_master_kas?: boolean;
   sort_by?: string;
   sort_order?: 'asc' | 'desc';
   page?: number;

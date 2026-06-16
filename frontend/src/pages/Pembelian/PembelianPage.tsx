@@ -15,13 +15,15 @@ import { Pembelian } from '../../types/purchase'
 import { toast } from 'sonner'
 import { PembelianTable } from './PembelianTable'
 import { PembelianForm } from './PembelianForm'
+import { getCurrentMonthDateRange } from '../../lib/utils'
 
 export const PembelianPage = () => {
+  const defaultMonthRange = getCurrentMonthDateRange()
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [supplierFilter, setSupplierFilter] = useState<number | undefined>()
-  const [dateFrom, setDateFrom] = useState('')
-  const [dateTo, setDateTo] = useState('')
+  const [dateFrom, setDateFrom] = useState(defaultMonthRange.from)
+  const [dateTo, setDateTo] = useState(defaultMonthRange.to)
   const [currentPage, setCurrentPage] = useState(1)
   const [perPage, setPerPage] = useState(15)
   const [isModalOpen, setIsModalOpen] = useState(false)
@@ -97,10 +99,11 @@ export const PembelianPage = () => {
   }
 
   const handleResetFilters = () => {
+    const monthRange = getCurrentMonthDateRange()
     setSearchTerm('')
     setSupplierFilter(undefined)
-    setDateFrom('')
-    setDateTo('')
+    setDateFrom(monthRange.from)
+    setDateTo(monthRange.to)
     setCurrentPage(1)
   }
 
