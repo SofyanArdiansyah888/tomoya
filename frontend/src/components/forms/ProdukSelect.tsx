@@ -1,14 +1,8 @@
-import { useQuery } from '@tanstack/react-query'
-import { Search } from 'lucide-react'
 import { useMemo, useState } from 'react'
+import { useQuery } from '@tanstack/react-query'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select-primitives'
+import { SelectSearchField, selectContentSearchProps } from '../ui/SelectSearchField'
 import { productService } from '../../services/products'
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from '../ui/select-primitives'
 
 interface ProdukSelectProps {
   value: string
@@ -54,20 +48,13 @@ export const ProdukSelect = ({
       <SelectTrigger className={className}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent {...(searchable ? selectContentSearchProps : {})}>
         {searchable && (
-          <div className="p-2 border-b">
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Cari produk..."
-                value={localSearchTerm}
-                onChange={(e) => setLocalSearchTerm(e.target.value)}
-                className="w-full pl-8 pr-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-          </div>
+          <SelectSearchField
+            placeholder="Cari produk..."
+            value={localSearchTerm}
+            onChange={setLocalSearchTerm}
+          />
         )}
         
         {isLoading ? (

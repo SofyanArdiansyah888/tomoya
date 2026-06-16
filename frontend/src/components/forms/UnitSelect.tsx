@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react'
-import { Search } from 'lucide-react'
 import { 
   Select, 
   SelectContent, 
@@ -7,6 +6,7 @@ import {
   SelectTrigger, 
   SelectValue 
 } from '../ui/select-primitives'
+import { SelectSearchField, selectContentSearchProps } from '../ui/SelectSearchField'
 
 interface UnitSelectProps {
   value: string
@@ -60,20 +60,13 @@ export const UnitSelect = ({
       <SelectTrigger className={className}>
         <SelectValue placeholder={placeholder} />
       </SelectTrigger>
-      <SelectContent>
+      <SelectContent {...(searchable ? selectContentSearchProps : {})}>
         {searchable && (
-          <div className="p-2 border-b">
-            <div className="relative">
-              <Search className="absolute left-2 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-              <input
-                type="text"
-                placeholder="Cari unit..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full pl-8 pr-3 py-1 text-sm border border-gray-300 rounded focus:outline-none focus:ring-1 focus:ring-blue-500"
-              />
-            </div>
-          </div>
+          <SelectSearchField
+            placeholder="Cari unit..."
+            value={searchTerm}
+            onChange={setSearchTerm}
+          />
         )}
         
         {filteredUnits.length === 0 ? (
