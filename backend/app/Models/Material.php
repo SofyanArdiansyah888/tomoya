@@ -27,6 +27,50 @@ class Material extends Model
     public function category(): BelongsTo
     {
         return $this->belongsTo(Kategori::class, 'category_id');
+    } 
+
+    public function isPastryDivision(): bool
+    {
+        $this->loadMissing('category');
+
+        return \App\Support\StockDivision::isPastryCategoryName($this->category?->nama);
+    }
+
+    public function scopeStockDivision($query, string $division)
+    {
+        $pastryCategoryIds = Kategori::query()
+            ->where(function ($q) {
+                foreach (\App\Support\StockDivision::PASTRY_CATEGORY_NAMES as $name) {
+                    $q->orWhereRaw('LOWER(TRIM(nama)) = ?', [strtolower($name)]);
+                }
+            })
+            ->pluck('id');
+
+        if ($division === \App\Support\StockDivision::PASTRY) {
+            return $query->whereIn('category_id', $pastryCategoryIds);
+        }
+
+        if ($division === \App\Support\StockDivision::MINUMAN) {
+            return $query->where(function ($q) use ($pastryCategoryIds) {
+                $q->whereNotIn('category_id', $pastryCategoryIds)
+                    ->orWhereNull('category_id');
+            });
+        }
+
+        return $query;
+    } 
+
+    public static function belongsToStockDivision(int $materialId, string $division): bool
+    {
+        $material = self::with('category')->find($materialId);
+
+        if (!$material) {
+            return false;
+        }
+
+        $isPastry = $material->isPastryDivision();
+
+        return $division === \App\Support\StockDivision::PASTRY ? $isPastry : !$isPastry;
     }
 
     public function supplier(): BelongsTo

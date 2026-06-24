@@ -64,6 +64,7 @@ export interface MaterialFilters {
   supplier_id?: number;
   search?: string;
   is_active?: boolean;
+  stock_division?: 'pastry' | 'minuman';
   page?: number;
   per_page?: number;
 }

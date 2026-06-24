@@ -326,6 +326,7 @@ export const Dashboard = () => {
                     setSelectedGudangCategory(Number.isFinite(num) ? num : "")
                   }}
                   placeholder="Semua Kategori"
+                  includeAllOption
                   filterPredicate={(c: any) => c.nama?.toLowerCase().includes('bahan')}
                 />
               </div>

@@ -5,10 +5,13 @@ namespace App\Modules\Inventori;
 use App\Http\Controllers\Controller;
 use App\Models\ItemLokasi;
 use App\Models\Lokasi;
-use Illuminate\Http\Request;
+use App\Models\MixPreparation;
+use Illuminate\Http\Request; 
 use Illuminate\Http\JsonResponse;
 use App\Http\Resources\ApiResource;
 use App\Models\Material;
+use App\Support\StockDivision;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
 use Illuminate\Support\Facades\DB;
 
 class ItemLokasiController extends Controller
@@ -21,6 +24,7 @@ class ItemLokasiController extends Controller
     {
         $tipeLokasi = $request->get('tipe_lokasi', 'gudang'); // default gudang
         $lokasiId = $request->get('lokasi_id');
+        $stockDivision = $request->get('stock_division');
 
         // Get all locations of the specified type
         $lokasiQuery = Lokasi::where('tipe', $tipeLokasi);
@@ -31,57 +35,30 @@ class ItemLokasiController extends Controller
 
         $result = [];
 
-        foreach ($lokasis as $lokasi) {
-            // Get all unique material_id for this location
-            $materialIds = ItemLokasi::where('lokasi_id', $lokasi->id)
-                ->distinct()
-                ->pluck('material_id')
-                ->toArray();
+        if ($stockDivision && StockDivision::isValidDivision($stockDivision)) {
+            $materials = Material::with('category') 
+                ->stockDivision($stockDivision)
+                ->orderBy('name')
+                ->get();
 
-            foreach ($materialIds as $materialId) {
-                // Get current stock using the appropriate helper method
-                // For gudang, use getCurrentGudangStock; for toko, use getCurrentStock
-                $currentStock = $tipeLokasi === 'gudang' 
-                    ? ItemLokasi::getCurrentGudangStock($lokasi->id, $materialId)
-                    : ItemLokasi::getCurrentStock($lokasi->id, $materialId);
+            foreach ($lokasis as $lokasi) {
+                foreach ($materials as $material) {
+                    $result[] = $this->buildCurrentStockRow($lokasi, $material, $tipeLokasi);
+                }
+            }
+        } else {
+            foreach ($lokasis as $lokasi) {
+                $materialIds = ItemLokasi::where('lokasi_id', $lokasi->id)
+                    ->distinct()
+                    ->pluck('material_id')
+                    ->toArray();
 
-                // Get material info
-                $material = \App\Models\Material::find($materialId);
-                
-                if ($material) {
-                    // Get latest item_lokasi record for last_updated timestamp
-                    $latestRecord = ItemLokasi::where('lokasi_id', $lokasi->id)
-                        ->where('material_id', $materialId)
-                        ->orderBy('tanggal', 'desc')
-                        ->orderBy('id', 'desc')
-                        ->first();
-                    
-                    $result[] = [
-                        'lokasi_id' => $lokasi->id,
-                        'material_id' => $materialId,
-                        'quantity' => $currentStock,
-                        'lokasi' => [
-                            'id' => $lokasi->id,
-                            'nama' => $lokasi->nama,
-                            'kode' => $lokasi->kode,
-                            'alamat' => $lokasi->alamat,
-                            'tipe' => $lokasi->tipe,
-                        ],
-                        'material' => [
-                            'id' => $material->id,
-                            'name' => $material->name,
-                            'sku' => $material->sku,
-                            'unit' => $material->unit,
-                            'purchase_price' => (float) $material->purchase_price,
-                            'min_stock' => $material->min_stock ?? 0,
-                            'unit_gudang' => $material->unit_gudang,
-                            'min_stok_gudang' => $material->min_stok_gudang ?? 0,
-                            'nilai_konversi' => $material->nilai_konversi ?? 0,
-                            'barcode' => $material->barcode ?? '',
-                            'is_active' => $material->is_active ?? false,
-                        ],
-                        'last_updated' => $latestRecord && $latestRecord->tanggal ? $latestRecord->tanggal->toIso8601String() : null,
-                    ];
+                foreach ($materialIds as $materialId) {
+                    $material = Material::with('category')->find($materialId);
+
+                    if ($material) {
+                        $result[] = $this->buildCurrentStockRow($lokasi, $material, $tipeLokasi);
+                    }
                 }
             }
         }
@@ -89,6 +66,51 @@ class ItemLokasiController extends Controller
         return response()->json([
             'data' => $result
         ]);
+    }
+
+    private function buildCurrentStockRow(Lokasi $lokasi, Material $material, string $tipeLokasi): array
+    {
+        $currentStock = $tipeLokasi === 'gudang'
+            ? ItemLokasi::getCurrentGudangStock($lokasi->id, $material->id)
+            : ItemLokasi::getCurrentStock($lokasi->id, $material->id);
+
+        $latestRecord = ItemLokasi::where('lokasi_id', $lokasi->id)
+            ->where('material_id', $material->id)
+            ->orderBy('tanggal', 'desc')
+            ->orderBy('id', 'desc')
+            ->first();
+
+        return [
+            'lokasi_id' => $lokasi->id,
+            'material_id' => $material->id,
+            'quantity' => $currentStock,
+            'lokasi' => [
+                'id' => $lokasi->id,
+                'nama' => $lokasi->nama,
+                'kode' => $lokasi->kode,
+                'alamat' => $lokasi->alamat,
+                'tipe' => $lokasi->tipe,
+            ],
+            'material' => [
+                'id' => $material->id,
+                'name' => $material->name,
+                'sku' => $material->sku,
+                'unit' => $material->unit,
+                'purchase_price' => (float) $material->purchase_price,
+                'min_stock' => $material->min_stock ?? 0,
+                'unit_gudang' => $material->unit_gudang,
+                'min_stok_gudang' => $material->min_stok_gudang ?? 0,
+                'nilai_konversi' => $material->nilai_konversi ?? 0,
+                'barcode' => $material->barcode ?? '',
+                'is_active' => $material->is_active ?? false,
+                'category_id' => $material->category_id,
+                'category' => $material->category ? [
+                    'id' => $material->category->id,
+                    'nama' => $material->category->nama,
+                ] : null,
+            ],
+            'last_updated' => $latestRecord && $latestRecord->tanggal ? $latestRecord->tanggal->toIso8601String() : null,
+        ];
     }
 
     /**
@@ -116,7 +138,14 @@ class ItemLokasiController extends Controller
      */
     public function index(Request $request): JsonResponse
     {
-        $query = ItemLokasi::with(['lokasi', 'material', 'user']);
+        $query = ItemLokasi::with([
+            'lokasi',
+            'material',
+            'user',
+            'reference' => fn (MorphTo $morphTo) => $morphTo->morphWith([
+                MixPreparation::class => ['outputProduk', 'outputMaterial'],
+            ]),
+        ]);
 
         // Filter by lokasi_id if provided
         if ($request->has('lokasi_id') && $request->lokasi_id) {

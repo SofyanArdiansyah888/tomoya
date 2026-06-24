@@ -1,4 +1,4 @@
-import { Route, Routes } from 'react-router-dom'
+import { Route, Routes, Navigate } from 'react-router-dom'
 import { Toaster } from 'sonner'
 import { DashboardLayout } from './components/layout/DashboardLayout'
 import { DaftarArusKas } from './pages/ArusKas/DaftarArusKas'
@@ -56,9 +56,13 @@ function App() {
 
           {/* Stock Management */}
           <Route path="stok-gudang" element={<StokGudang />} />
-          <Route path="stok-toko" element={<StokToko />} />
+          <Route path="stok-toko" element={<Navigate to="/stok-toko/minuman" replace />} />
+          <Route path="stok-toko/pastry" element={<StokToko division="pastry" />} />
+          <Route path="stok-toko/minuman" element={<StokToko division="minuman" />} />
           <Route path="pergerakan-stok" element={<PergerakanStok />} />
-          <Route path="mix-preparation" element={<MixPreparation />} />
+          <Route path="mix-preparation" element={<Navigate to="/mix-preparation/minuman" replace />} />
+          <Route path="mix-preparation/pastry" element={<MixPreparation division="pastry" />} />
+          <Route path="mix-preparation/minuman" element={<MixPreparation division="minuman" />} />
 
           {/* Cashier & Orders */}
           <Route path="kasir" element={<Kasir />} />

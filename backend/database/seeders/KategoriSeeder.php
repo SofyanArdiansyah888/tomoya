@@ -14,6 +14,7 @@ class KategoriSeeder extends Seeder
     {
         // Skip if categories already exist
         if (Kategori::count() > 0) {
+            self::ensurePastryCategories();
             return;
         }
 
@@ -47,6 +48,26 @@ class KategoriSeeder extends Seeder
 
         foreach ($kategories as $kategori) {
             Kategori::create($kategori);
+        }
+ 
+        foreach ([
+            ['nama' => 'Pastry', 'deskripsi' => 'Bahan baku pastry', 'is_active' => true],
+            ['nama' => 'Cake', 'deskripsi' => 'Bahan baku kue/cake', 'is_active' => true],
+        ] as $kategori) {
+            Kategori::firstOrCreate(['nama' => $kategori['nama']], $kategori);
+        }
+    }
+
+    /**
+     * Ensure pastry division categories exist (safe to call on existing DB).
+     */
+    public static function ensurePastryCategories(): void
+    {
+        foreach ([
+            ['nama' => 'Pastry', 'deskripsi' => 'Bahan baku pastry', 'is_active' => true],
+            ['nama' => 'Cake', 'deskripsi' => 'Bahan baku kue/cake', 'is_active' => true],
+        ] as $kategori) {
+            Kategori::firstOrCreate(['nama' => $kategori['nama']], $kategori);
         }
     }
 }

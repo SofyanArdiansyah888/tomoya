@@ -53,7 +53,49 @@ class ProdukLokasi extends Model
     {
         return $query->whereHas('lokasi', function ($q) {
             $q->where('tipe', 'toko');
-        });
+        }); 
+    } 
+
+    public static function getQuantityAtLocation(int $lokasiId, int $produkId): int
+    {
+        $record = static::where('lokasi_id', $lokasiId)
+            ->where('produk_id', $produkId)
+            ->first();
+
+        return $record ? (int) $record->quantity : 0;
+    }
+ 
+    /**
+     * @param bool $allowNegative When true, stock may go below zero (e.g. penjualan pastry).
+     * @throws \RuntimeException when adjustment would make stock negative and $allowNegative is false
+     */
+    public static function adjustQuantity(int $lokasiId, int $produkId, int $delta, bool $allowNegative = false): self
+    {
+        $record = static::firstOrNew([
+            'lokasi_id' => $lokasiId,
+            'produk_id' => $produkId,
+        ]);
+
+        if (!$record->exists) {
+            $record->quantity = 0;
+            $record->reserved_quantity = 0;
+            $record->available_quantity = 0;
+            $record->min_stock_level = 0;
+            $record->reorder_point = 0;
+        }
+
+        $newQuantity = (int) $record->quantity + $delta;
+
+        if (!$allowNegative && $newQuantity < 0) {
+            throw new \RuntimeException('Stok produk tidak mencukupi.');
+        }
+
+        $record->quantity = $newQuantity;
+        $record->available_quantity = max(0, $newQuantity - (int) $record->reserved_quantity);
+        $record->last_updated_at = now();
+        $record->save();
+
+        return $record;
     }
 }
 

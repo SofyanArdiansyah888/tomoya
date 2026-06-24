@@ -5,9 +5,11 @@ namespace App\Modules\Inventori;
 use App\Http\Controllers\Controller;
 use App\Models\ProdukLokasi;
 use App\Models\Produk;
+use App\Models\Lokasi;
 use App\Models\ItemLokasi;
+use App\Support\StockDivision;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Http\JsonResponse; 
 use App\Http\Resources\ApiResource;
 
 class ProdukLokasiController extends Controller
@@ -32,9 +34,101 @@ class ProdukLokasiController extends Controller
         if ($request->has('lokasi_id')) {
             $query->where('lokasi_id', $request->lokasi_id);
         }
+ 
+        // Filter berdasarkan produk_id jika ada
+        if ($request->has('produk_id')) {
+            $query->where('produk_id', $request->produk_id);
+        }
 
         $produkLokasis = $query->get();
         return response()->json(ApiResource::collection($produkLokasis));
+    }
+
+    /**
+     * Get current product stock by location type (for Stok Toko Pastry).
+     * When stock_division is set, includes all products in that division (qty 0 if no record).
+     */
+    public function getCurrentStock(Request $request): JsonResponse
+    {
+        $tipeLokasi = $request->get('tipe_lokasi', 'toko');
+        $lokasiId = $request->get('lokasi_id');
+        $stockDivision = $request->get('stock_division');
+
+        $lokasiQuery = Lokasi::where('tipe', $tipeLokasi);
+        if ($lokasiId) {
+            $lokasiQuery->where('id', $lokasiId);
+        }
+        $lokasis = $lokasiQuery->get();
+
+        $result = [];
+
+        if ($stockDivision && StockDivision::isValidDivision($stockDivision)) {
+            $produks = Produk::with('kategori')
+                ->stockDivision($stockDivision)
+                ->orderBy('nama')
+                ->get();
+
+            foreach ($lokasis as $lokasi) {
+                foreach ($produks as $produk) {
+                    $result[] = $this->buildProdukStockRow($lokasi, $produk);
+                }
+            }
+        } else {
+            $query = ProdukLokasi::with(['lokasi', 'produk.kategori'])
+                ->whereHas('lokasi', function ($q) use ($tipeLokasi) {
+                    $q->where('tipe', $tipeLokasi);
+                });
+
+            if ($lokasiId) {
+                $query->where('lokasi_id', $lokasiId);
+            }
+
+            foreach ($query->get() as $record) {
+                if (!$record->produk || !$record->lokasi) {
+                    continue;
+                }
+                $result[] = $this->buildProdukStockRow($record->lokasi, $record->produk, $record);
+            }
+        }
+
+        return response()->json(['data' => $result]);
+    }
+
+    private function buildProdukStockRow(Lokasi $lokasi, Produk $produk, ?ProdukLokasi $record = null): array
+    {
+        if ($record === null) {
+            $record = ProdukLokasi::where('lokasi_id', $lokasi->id)
+                ->where('produk_id', $produk->id)
+                ->first();
+        }
+
+        $quantity = $record->quantity ?? 0;
+
+        return [
+            'lokasi_id' => $lokasi->id,
+            'produk_id' => $produk->id,
+            'quantity' => $quantity,
+            'available_quantity' => $record->available_quantity ?? $quantity,
+            'min_stock_level' => $record->min_stock_level ?? 0,
+            'lokasi' => [
+                'id' => $lokasi->id,
+                'nama' => $lokasi->nama,
+                'kode' => $lokasi->kode,
+                'alamat' => $lokasi->alamat,
+                'tipe' => $lokasi->tipe,
+            ],
+            'produk' => [
+                'id' => $produk->id,
+                'nama' => $produk->nama,
+                'kode' => $produk->kode,
+                'harga' => (float) $produk->harga,
+                'kategori' => $produk->kategori ? [
+                    'id' => $produk->kategori->id,
+                    'nama' => $produk->kategori->nama,
+                ] : null,
+            ],
+            'last_updated' => $record?->last_updated_at?->toIso8601String(),
+        ];
     }
 
     /**
@@ -126,16 +220,34 @@ class ProdukLokasiController extends Controller
         }
 
         try {
-            // Get all stockable products with recipes
-            $produks = Produk::where('stockable', true)
-                ->whereNotNull('resep_id')
-                ->with(['resep.recipeMaterials.material'])
+            $pastryCategoryIds = StockDivision::pastryCategoryIds();
+
+            $produks = Produk::with(['resep.recipeMaterials.material', 'kategori'])
+                ->where(function ($query) use ($pastryCategoryIds, $lokasiId) {
+                    $query->where('stockable', true)
+                        ->orWhereIn('kategori_id', $pastryCategoryIds)
+                        ->orWhereIn('id', function ($sub) use ($lokasiId) {
+                            $sub->select('produk_id')
+                                ->from('produk_lokasi')
+                                ->where('lokasi_id', $lokasiId);
+                        });
+                })
                 ->get();
 
-            $result = [];
+            $result = []; 
 
             foreach ($produks as $produk) {
-                if (!$produk->resep || !$produk->resep->recipeMaterials || $produk->resep->recipeMaterials->isEmpty()) {
+                $produk->loadMissing('kategori');
+
+                if ($produk->usesProdukLokasiStock((int) $lokasiId)) {
+                    $result[] = [
+                        'produk_id' => $produk->id,
+                        'quantity' => ProdukLokasi::getQuantityAtLocation((int) $lokasiId, (int) $produk->id),
+                    ];
+                    continue;
+                }
+
+                if (!$produk->stockable || !$produk->resep || !$produk->resep->recipeMaterials || $produk->resep->recipeMaterials->isEmpty()) {
                     // Product has no recipe or no materials, stock is 0
                     $result[] = [
                         'produk_id' => $produk->id,

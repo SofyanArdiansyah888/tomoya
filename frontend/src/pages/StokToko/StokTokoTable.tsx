@@ -1,18 +1,24 @@
 import { Card, CardContent } from '../../components/ui/card'
 import { Badge } from '../../components/ui/badge'
-import { MaterialStock } from '../../services/inventory'
+import { MaterialStock, ProdukStock } from '../../services/inventory'
 import { formatPrice } from '../../lib/formatPrice'
 import { AlertTriangle } from 'lucide-react'
 
 interface StokTokoTableProps {
-  inventory: MaterialStock[]
+  mode?: 'material' | 'produk'
+  inventory: MaterialStock[] | ProdukStock[]
   isLoading: boolean
 }
 
 export const StokTokoTable = ({
+  mode = 'material',
   inventory,
   isLoading
 }: StokTokoTableProps) => {
+  const isProduk = mode === 'produk'
+  const itemLabel = isProduk ? 'Produk' : 'Material'
+  const priceLabel = isProduk ? 'Harga Jual' : 'Harga Beli'
+
   if (isLoading) {
     return (
       <Card>
@@ -22,52 +28,21 @@ export const StokTokoTable = ({
               <thead className="bg-gray-50 border-b">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Toko</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Material</th>
-                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">SKU</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{itemLabel}</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Stok</th>
                   <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Min Stok</th>
-                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Harga Beli</th>
+                  <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{priceLabel}</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
                 {[1, 2, 3, 4, 5, 6].map((i) => (
                   <tr key={i}>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="animate-pulse">
-                        <div className="bg-gray-200 h-4 rounded w-32"></div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="animate-pulse">
-                        <div className="bg-gray-200 h-4 rounded w-40"></div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="animate-pulse">
-                        <div className="bg-gray-200 h-4 rounded w-16"></div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="animate-pulse">
-                        <div className="bg-gray-200 h-4 rounded w-16"></div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="animate-pulse">
-                        <div className="bg-gray-200 h-4 rounded w-16"></div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="animate-pulse">
-                        <div className="bg-gray-200 h-4 rounded w-16"></div>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="animate-pulse">
-                        <div className="bg-gray-200 h-6 rounded w-20"></div>
-                      </div>
-                    </td>
+                    {Array.from({ length: 6 }).map((_, col) => (
+                      <td key={col} className="px-6 py-4 whitespace-nowrap">
+                        <div className="animate-pulse bg-gray-200 h-4 rounded w-24" />
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>
@@ -88,12 +63,11 @@ export const StokTokoTable = ({
     )
   }
 
-  const getStockStatus = (item: MaterialStock) => {
-    if ((item.quantity ?? 0) <= 0) {
+  const getStockStatus = (quantity: number, minStock: number) => {
+    if (quantity <= 0) {
       return { label: 'Habis', variant: 'destructive' as const }
     }
-    const minStock = item.material?.min_stock || 0
-    if ((item.quantity ?? 0) <= minStock) {
+    if (quantity <= minStock) {
       return { label: 'Stok Rendah', variant: 'destructive' as const }
     }
     return { label: 'Normal', variant: 'default' as const }
@@ -106,66 +80,75 @@ export const StokTokoTable = ({
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Toko
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Material
-                </th>
-            
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Stok
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Min Stok
-                </th>
-                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Harga Beli
-                </th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Status
-                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Toko</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">{itemLabel}</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Stok</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Min Stok</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">{priceLabel}</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {inventory.map((item, index) => {
-                const status = getStockStatus(item)
+                const quantity = item.quantity ?? 0
+                const minStock = isProduk
+                  ? (item as ProdukStock).min_stock_level ?? 0
+                  : (item as MaterialStock).material?.min_stock ?? 0
+                const status = getStockStatus(quantity, minStock)
+                const rowKey = isProduk
+                  ? `${item.lokasi_id}-${(item as ProdukStock).produk_id}-${index}`
+                  : `${item.lokasi_id}-${(item as MaterialStock).material_id}-${index}`
+
                 return (
-                  <tr key={`${item.lokasi_id}-${item.material_id}-${index}`} className="hover:bg-gray-50">
+                  <tr key={rowKey} className="hover:bg-gray-50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {item.lokasi?.nama || 'N/A'}
-                      </div>
-                      <div className="text-sm text-gray-500">
-                        {item.lokasi?.kode || ''}
-                      </div>
+                      <div className="text-sm font-medium text-gray-900">{item.lokasi?.nama || 'N/A'}</div>
+                      <div className="text-sm text-gray-500">{item.lokasi?.kode || ''}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-900">
-                        {item.material?.name || 'N/A'}
-                      </div>
-                      {item.material?.unit && (
-                        <div className="text-sm text-gray-500">
-                          Unit: {item.material.unit}
-                        </div>
+                      {isProduk ? (
+                        <>
+                          <div className="text-sm font-medium text-gray-900">
+                            {(item as ProdukStock).produk?.nama || 'N/A'}
+                          </div>
+                          <div className="text-sm text-gray-500">
+                            {(item as ProdukStock).produk?.kode || ''}
+                            {(item as ProdukStock).produk?.kategori?.nama
+                              ? ` · ${(item as ProdukStock).produk?.kategori?.nama}`
+                              : ''}
+                          </div>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-sm font-medium text-gray-900">
+                            {(item as MaterialStock).material?.name || 'N/A'}
+                          </div>
+                          {(item as MaterialStock).material?.unit && (
+                            <div className="text-sm text-gray-500">
+                              Unit: {(item as MaterialStock).material?.unit}
+                            </div>
+                          )}
+                        </>
                       )}
                     </td>
-                  
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="text-sm font-medium text-gray-900">
-                        {(item.quantity !== undefined && item.quantity !== null)
-                          ? item.quantity.toLocaleString('id-ID')
-                          : '-'} {item.material?.unit || ''}
+                        {quantity.toLocaleString('id-ID')}
+                        {!isProduk && (item as MaterialStock).material?.unit
+                          ? ` ${(item as MaterialStock).material?.unit}`
+                          : isProduk ? ' pcs' : ''}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
-                      <div className="text-sm text-gray-500">
-                        {item.material?.min_stock || 0}
-                      </div>
+                      <div className="text-sm text-gray-500">{minStock}</div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right">
                       <div className="text-sm text-gray-900">
-                        {item.material?.purchase_price ? formatPrice(item.material.purchase_price) : '-'}
+                        {isProduk
+                          ? formatPrice((item as ProdukStock).produk?.harga ?? 0)
+                          : (item as MaterialStock).material?.purchase_price
+                            ? formatPrice((item as MaterialStock).material!.purchase_price)
+                            : '-'}
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
@@ -184,4 +167,3 @@ export const StokTokoTable = ({
     </Card>
   )
 }
-

@@ -68,9 +68,10 @@ Route::middleware(['auth:sanctum', 'api.auth'])->group(function () {
     Route::get('lokasi/gudang', [LokasiController::class, 'gudang']);
     Route::get('lokasi/toko', [LokasiController::class, 'toko']);
 
-    // Produk Lokasi API
+    // Produk Lokasi API 
     Route::get('produk-lokasi/stock-by-recipe', [ProdukLokasiController::class, 'getProductStockByRecipe']);
     Route::get('produk-lokasi/low-stock', [ProdukLokasiController::class, 'lowStock']);
+    Route::get('produk-lokasi/current-stock', [ProdukLokasiController::class, 'getCurrentStock']);
     Route::apiResource('produk-lokasi', ProdukLokasiController::class);
 
     // Item Lokasi API (Material Stock)

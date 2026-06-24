@@ -1,6 +1,7 @@
 import { api } from './api'
 import { PaginatedResponse } from '../types/api'
 import { Material } from '@/types/material'
+import { StockDivision } from '@/lib/stockDivision'
 
 export interface InventoriGudang {
   id: number
@@ -78,8 +79,33 @@ export interface ProdukLokasi {
   produk?: {
     id: number
     nama: string
+    kode?: string
     harga: number
+    kategori?: {
+      id: number
+      nama: string
+    }
   }
+}
+
+export interface ProdukStock {
+  lokasi_id: number
+  produk_id: number
+  quantity: number
+  available_quantity?: number
+  min_stock_level?: number
+  lokasi?: Lokasi
+  produk?: {
+    id: number
+    nama: string
+    kode: string
+    harga: number
+    kategori?: {
+      id: number
+      nama: string
+    }
+  }
+  last_updated?: string
 }
 
 export interface ItemLokasi {
@@ -111,6 +137,25 @@ export interface ItemLokasi {
   user?: {
     id: number
     name: string
+  }
+  reference?: MixPreparationReference
+}
+
+export interface MixPreparationReference {
+  id: number
+  output_type?: 'produk' | 'material'
+  output_produk_id?: number | null
+  output_material_id?: number | null
+  output_quantity?: number
+  output_produk?: {
+    id: number
+    nama: string
+    kode?: string
+  }
+  output_material?: {
+    id: number
+    name: string
+    sku?: string
   }
 }
 
@@ -148,11 +193,16 @@ export const inventoryService = {
 
 export const produkLokasiService = {
   // Get inventory by location
-  async getInventoryByLocation(lokasiId: number): Promise<ProdukLokasi[]> {
-    const response = await api.get('/produk-lokasi', {
-      params: { lokasi_id: lokasiId }
-    })
+  async getInventoryByLocation(lokasiId: number, produkId?: number): Promise<ProdukLokasi[]> {
+    const params: Record<string, number> = { lokasi_id: lokasiId }
+    if (produkId) params.produk_id = produkId
+    const response = await api.get('/produk-lokasi', { params })
     return response.data.data || response.data
+  },
+
+  async getProdukStockAtLocation(lokasiId: number, produkId: number): Promise<ProdukLokasi | null> {
+    const records = await this.getInventoryByLocation(lokasiId, produkId)
+    return records[0] ?? null
   },
 
   // Get all inventory by location type
@@ -176,7 +226,19 @@ export const produkLokasiService = {
       params: { lokasi_id: lokasiId }
     })
     return response.data.data || response.data
-  }
+  },
+
+  async getCurrentStock(
+    tipe: 'gudang' | 'toko',
+    lokasiId?: number,
+    stockDivision?: StockDivision
+  ): Promise<ProdukStock[]> {
+    const params: Record<string, string | number> = { tipe_lokasi: tipe }
+    if (lokasiId) params.lokasi_id = lokasiId
+    if (stockDivision) params.stock_division = stockDivision
+    const response = await api.get('/produk-lokasi/current-stock', { params })
+    return response.data.data || response.data || []
+  },
 }
 
 export interface MaterialStock {
@@ -211,10 +273,13 @@ export const itemLokasiService = {
   },
 
   // Get current stock by location type (gudang/toko)
-  async getCurrentStock(tipe: 'gudang' | 'toko', lokasiId?: number): Promise<MaterialStock[]> {
-    const params: any = { tipe_lokasi: tipe }
+  async getCurrentStock(tipe: 'gudang' | 'toko', lokasiId?: number, stockDivision?: StockDivision): Promise<MaterialStock[]> {
+    const params: Record<string, string | number> = { tipe_lokasi: tipe }
     if (lokasiId) {
       params.lokasi_id = lokasiId
+    }
+    if (stockDivision) {
+      params.stock_division = stockDivision
     }
     const response = await api.get('/item-lokasi/current-stock', { params })
     return response.data.data || response.data || []
@@ -271,7 +336,8 @@ export const itemLokasiService = {
   },
   async createMixPreparation(data: {
     lokasi_id: number
-    output_material_id: number
+    output_material_id?: number
+    output_produk_id?: number
     output_quantity: number
     inputs: { material_id: number; quantity: number }[]
     keterangan?: string

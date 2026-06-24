@@ -7,19 +7,22 @@ import { itemLokasiService } from '../../services/inventory'
 import { materialService } from '../../services/material'
 import { MaterialSelect } from '../../components/forms'
 import { toast } from 'sonner'
+import { StockDivision } from '../../lib/stockDivision'
 
 interface TransferStokModalProps {
   isOpen: boolean
   onClose: () => void
   onTransfer: (data: { lokasi_tujuan_id: number; material_id: number; quantity: number; keterangan?: string }) => void
   isLoading: boolean
+  stockDivision?: StockDivision
 }
 
 export const TransferStokModal = ({
   isOpen,
   onClose,
   onTransfer,
-  isLoading
+  isLoading,
+  stockDivision
 }: TransferStokModalProps) => {
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | ''>('')
   const [quantity, setQuantity] = useState('')
@@ -115,6 +118,7 @@ export const TransferStokModal = ({
             }}
             placeholder="Pilih Material"
             searchable={true}
+            stockDivision={stockDivision}
           />
         </div>
 

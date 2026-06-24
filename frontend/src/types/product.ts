@@ -53,9 +53,11 @@ export interface GambarProduk {
 
 export interface ProdukFilters {
   kategori_id?: number;
-  search?: string;
+  search?: string; 
   is_active?: boolean;
   favorite?: boolean;
+  stockable?: boolean;
+  stock_division?: 'pastry' | 'minuman';
   page?: number;
   per_page?: number;
 }

@@ -9,6 +9,7 @@ import {
 } from '../ui/select-primitives'
 import { SelectSearchField, selectContentSearchProps } from '../ui/SelectSearchField'
 import { materialService } from '../../services/material'
+import { StockDivision } from '../../lib/stockDivision'
 
 interface MaterialSelectProps {
   value: string
@@ -19,6 +20,7 @@ interface MaterialSelectProps {
   searchable?: boolean
   showAllOption?: boolean
   allOptionLabel?: string
+  stockDivision?: StockDivision
 }
 
 export const MaterialSelect = ({ 
@@ -29,13 +31,16 @@ export const MaterialSelect = ({
   className = "",
   searchable = true,
   showAllOption = false,
-  allOptionLabel = "Semua Material"
+  allOptionLabel = "Semua Material",
+  stockDivision
 }: MaterialSelectProps) => {
   const [searchTerm, setSearchTerm] = useState('')
   
   const { data: materials, isLoading } = useQuery({
-    queryKey: ['materials'],
-    queryFn: () => materialService.getMaterials()
+    queryKey: ['materials', stockDivision],
+    queryFn: () => materialService.getMaterials(
+      stockDivision ? { stock_division: stockDivision } : undefined
+    )
   })
 
   const ALL_VALUE = "__all__"

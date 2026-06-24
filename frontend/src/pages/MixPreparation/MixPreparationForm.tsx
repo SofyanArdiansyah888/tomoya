@@ -3,9 +3,10 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { Button } from '../../components/ui/button'
 import { Input } from '../../components/ui/input'
 import { NumericInput } from '../../components/ui/NumericInput'
-import { MaterialSelect } from '../../components/forms'
-import { itemLokasiService } from '../../services/inventory'
+import { MaterialSelect, ProdukSelect } from '../../components/forms'
+import { itemLokasiService, MaterialStock, produkLokasiService } from '../../services/inventory'
 import { toast } from 'sonner'
+import { StockDivision } from '../../lib/stockDivision'
 
 type MixInput = { material_id: string; quantity: number }
 
@@ -13,24 +14,29 @@ interface MixInputRowProps {
   index: number
   row: MixInput
   lokasiId: number
+  stocks?: MaterialStock[]
   onChangeMaterial: (index: number, materialId: string) => void
   onChangeQuantity: (index: number, quantity: number) => void
   onRemove: (index: number) => void
 }
 
-const MixInputRow = ({ index, row, lokasiId, onChangeMaterial, onChangeQuantity, onRemove }: MixInputRowProps) => {
-  const { data: stocks } = useQuery({
-    queryKey: ['item-lokasi-toko-input', row.material_id],
-    queryFn: () => itemLokasiService.getCurrentStock('toko'),
-    enabled: !!row.material_id
-  })
-
+const MixInputRow = ({
+  index,
+  row,
+  lokasiId,
+  stocks,
+  onChangeMaterial,
+  onChangeQuantity,
+  onRemove,
+}: MixInputRowProps) => {
   const current = useMemo(() => {
     if (!row.material_id || !stocks) return { qty: 0, unit: '' }
-    const s = stocks.find((x: any) => x.material_id == Number(row.material_id) && x.lokasi_id === lokasiId)
+    const s = stocks.find(
+      (x) => x.material_id == Number(row.material_id) && x.lokasi_id === lokasiId
+    )
     return {
       qty: Number(s?.quantity ?? s?.current_stock ?? 0),
-      unit: s?.material?.unit ?? ''
+      unit: s?.material?.unit ?? '',
     }
   }, [stocks, row.material_id, lokasiId])
 
@@ -38,29 +44,32 @@ const MixInputRow = ({ index, row, lokasiId, onChangeMaterial, onChangeQuantity,
     <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr_auto] gap-4 items-center">
       <div>
         <label className="block text-sm font-medium mb-1">Material</label>
-        <MaterialSelect value={row.material_id} onChange={(v) => onChangeMaterial(index, v)} placeholder="Pilih material" />
+        <MaterialSelect
+          value={row.material_id}
+          onChange={(v) => onChangeMaterial(index, v)}
+          placeholder="Pilih material"
+        />
         <div className="h-4" />
       </div>
       <div>
         <div className="flex items-center justify-between mb-1">
           <label className="block text-sm font-medium">Jumlah</label>
           {row.material_id && (
-            <span className="text-xs text-gray-600">Stok saat ini: {current.qty} {current.unit}</span>
+            <span className="text-xs text-gray-600">
+              Stok saat ini: {current.qty} {current.unit}
+            </span>
           )}
         </div>
         <NumericInput
           value={row.quantity}
           onChange={(val) => onChangeQuantity(index, val)}
-          className={row.material_id && row.quantity > current.qty ? 'border-red-500' : ''}
         />
-        <div className="h-4">
-          {row.material_id && row.quantity > current.qty && (
-            <span className="text-xs text-red-600">Maksimal {current.qty} {current.unit}</span>
-          )}
-        </div>
+        <div className="h-4" />
       </div>
       <div className="flex md:justify-end items-center h-full">
-        <Button variant="destructive" size="sm" onClick={() => onRemove(index)}>Hapus</Button>
+        <Button variant="destructive" size="sm" onClick={() => onRemove(index)}>
+          Hapus
+        </Button>
       </div>
     </div>
   )
@@ -68,11 +77,14 @@ const MixInputRow = ({ index, row, lokasiId, onChangeMaterial, onChangeQuantity,
 
 interface MixPreparationFormProps {
   lokasiId: number
+  division: StockDivision
   onSuccess?: () => void
 }
 
-export const MixPreparationForm = ({ lokasiId, onSuccess }: MixPreparationFormProps) => {
+export const MixPreparationForm = ({ lokasiId, division, onSuccess }: MixPreparationFormProps) => {
+  const isPastry = division === 'pastry'
   const [outputMaterialId, setOutputMaterialId] = useState<string>('')
+  const [outputProdukId, setOutputProdukId] = useState<string>('')
   const [outputQuantity, setOutputQuantity] = useState<number>(0)
   const [inputs, setInputs] = useState<MixInput[]>([{ material_id: '', quantity: 0 }])
   const [keterangan, setKeterangan] = useState<string>('')
@@ -83,6 +95,7 @@ export const MixPreparationForm = ({ lokasiId, onSuccess }: MixPreparationFormPr
       toast.success('Mix Preparation berhasil dibuat')
       onSuccess?.()
       setOutputMaterialId('')
+      setOutputProdukId('')
       setOutputQuantity(0)
       setInputs([{ material_id: '', quantity: 0 }])
       setKeterangan('')
@@ -90,66 +103,93 @@ export const MixPreparationForm = ({ lokasiId, onSuccess }: MixPreparationFormPr
     onError: (err: any) => {
       const message = err?.response?.data?.message || 'Gagal membuat Mix Preparation'
       toast.error(message)
-    }
+    },
   })
 
   const { data: outputStocks } = useQuery({
-    queryKey: ['item-lokasi-toko-for-output', outputMaterialId],
-    queryFn: () => itemLokasiService.getCurrentStock('toko'),
-    enabled: !!outputMaterialId
+    queryKey: ['item-lokasi-toko-for-output', division, outputMaterialId],
+    queryFn: () => itemLokasiService.getCurrentStock('toko', undefined, division),
+    enabled: !isPastry && !!outputMaterialId,
+  })
+
+  const { data: outputProdukStock } = useQuery({
+    queryKey: ['produk-lokasi-output', lokasiId, outputProdukId],
+    queryFn: () => produkLokasiService.getProdukStockAtLocation(lokasiId, Number(outputProdukId)),
+    enabled: isPastry && !!outputProdukId,
   })
 
   const currentOutputStock = useMemo(() => {
+    if (isPastry) {
+      if (!outputProdukId) return { qty: 0, unit: 'pcs' }
+      return {
+        qty: Number(outputProdukStock?.quantity ?? 0),
+        unit: 'pcs',
+      }
+    }
     if (!outputMaterialId || !outputStocks) return { qty: 0, unit: '' }
-    const s = outputStocks.find((x) => x.material_id == Number(outputMaterialId) && x.lokasi_id === lokasiId)
+    const s = outputStocks.find(
+      (x) => x.material_id == Number(outputMaterialId) && x.lokasi_id === lokasiId
+    )
     return {
       qty: Number(s?.quantity ?? s?.current_stock ?? 0),
-      unit: s?.material?.unit ?? ''
+      unit: s?.material?.unit ?? '',
     }
-  }, [outputMaterialId, outputStocks, lokasiId])
+  }, [isPastry, outputMaterialId, outputProdukId, outputStocks, outputProdukStock, lokasiId])
 
-  const addInputRow = () => setInputs(prev => [...prev, { material_id: '', quantity: 0 }])
-  const removeInputRow = (index: number) => setInputs(prev => prev.filter((_, i) => i !== index))
-  const updateInputMaterial = (index: number, materialId: string) => setInputs(prev => prev.map((row, i) => i === index ? { ...row, material_id: materialId } : row))
-  const updateInputQuantity = (index: number, quantity: number) => setInputs(prev => prev.map((row, i) => i === index ? { ...row, quantity } : row))
+  const addInputRow = () => setInputs((prev) => [...prev, { material_id: '', quantity: 0 }])
+  const removeInputRow = (index: number) =>
+    setInputs((prev) => prev.filter((_, i) => i !== index))
+  const updateInputMaterial = (index: number, materialId: string) =>
+    setInputs((prev) =>
+      prev.map((row, i) => (i === index ? { ...row, material_id: materialId } : row))
+    )
+  const updateInputQuantity = (index: number, quantity: number) =>
+    setInputs((prev) =>
+      prev.map((row, i) => (i === index ? { ...row, quantity } : row))
+    )
 
   const { data: validationStocks } = useQuery({
     queryKey: ['validation-stock-toko', lokasiId],
     queryFn: () => itemLokasiService.getCurrentStock('toko'),
     enabled: !!lokasiId,
-    staleTime: 0
+    staleTime: 0,
   })
 
   const handleSubmit = () => {
-    if (!outputMaterialId || outputQuantity <= 0) {
-      toast.error('Isi material hasil dan jumlahnya')
+    const hasValidOutput = isPastry
+      ? !!outputProdukId && outputQuantity > 0
+      : !!outputMaterialId && outputQuantity > 0
+
+    if (!hasValidOutput) {
+      toast.error(isPastry ? 'Isi produk hasil dan jumlahnya' : 'Isi material hasil dan jumlahnya')
       return
     }
-    const validInputs = inputs.filter(i => i.material_id && i.quantity > 0)
+    const validInputs = inputs.filter((i) => i.material_id && i.quantity > 0)
     if (validInputs.length === 0) {
       toast.error('Tambahkan bahan input yang valid')
       return
     }
 
-    const vMap = new Map<number, number>()
-    for (const s of (validationStocks ?? [])) {
-      if (s.lokasi_id !== lokasiId) continue
-      vMap.set(Number(s.material_id), Number(s.quantity ?? s.current_stock ?? 0))
-    }
-    for (const i of validInputs) {
-      const avail = vMap.get(Number(i.material_id)) ?? 0
-      if (i.quantity > avail) {
-        toast.error('Stok tidak mencukupi untuk salah satu bahan input')
-        return
-      }
-    }
     createMix.mutate({
       lokasi_id: lokasiId,
-      output_material_id: Number(outputMaterialId),
+      ...(isPastry
+        ? { output_produk_id: Number(outputProdukId) }
+        : { output_material_id: Number(outputMaterialId) }),
       output_quantity: outputQuantity,
-      inputs: validInputs.map(i => ({ material_id: Number(i.material_id), quantity: i.quantity })),
-      keterangan
+      inputs: validInputs.map((i) => ({
+        material_id: Number(i.material_id),
+        quantity: i.quantity,
+      })),
+      keterangan,
     })
+  }
+
+  const resetForm = () => {
+    setOutputMaterialId('')
+    setOutputProdukId('')
+    setOutputQuantity(0)
+    setInputs([{ material_id: '', quantity: 0 }])
+    setKeterangan('')
   }
 
   return (
@@ -157,20 +197,35 @@ export const MixPreparationForm = ({ lokasiId, onSuccess }: MixPreparationFormPr
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
         <div>
           <div className="flex items-center justify-between mb-1">
-            <label className="block text-sm font-medium">Material Hasil</label>
-            {outputMaterialId && (
-              <span className="text-xs text-gray-600">Stok saat ini: {currentOutputStock.qty} {currentOutputStock.unit}</span>
+            <label className="block text-sm font-medium">
+              {isPastry ? 'Produk Hasil' : 'Material Hasil'}
+            </label>
+            {(isPastry ? outputProdukId : outputMaterialId) && (
+              <span className="text-xs text-gray-600">
+                Stok saat ini: {currentOutputStock.qty} {currentOutputStock.unit}
+              </span>
             )}
           </div>
-          <MaterialSelect value={outputMaterialId} onChange={setOutputMaterialId} placeholder="Pilih material hasil" />
+          {isPastry ? (
+            <ProdukSelect
+              value={outputProdukId}
+              onChange={setOutputProdukId}
+              placeholder="Pilih produk hasil"
+              stockDivision="pastry"
+            />
+          ) : (
+            <MaterialSelect
+              value={outputMaterialId}
+              onChange={setOutputMaterialId}
+              placeholder="Pilih material hasil"
+              stockDivision={division}
+            />
+          )}
           <div className="h-4" />
         </div>
         <div>
           <label className="block text-sm font-medium mb-1">Jumlah Hasil</label>
-          <NumericInput
-            value={outputQuantity}
-            onChange={setOutputQuantity}
-          />
+          <NumericInput value={outputQuantity} onChange={setOutputQuantity} />
           <div className="h-4" />
         </div>
       </div>
@@ -178,7 +233,9 @@ export const MixPreparationForm = ({ lokasiId, onSuccess }: MixPreparationFormPr
       <div className="space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-lg font-semibold">Bahan Input</h2>
-          <Button variant="outline" onClick={addInputRow}>Tambah Bahan</Button>
+          <Button variant="outline" onClick={addInputRow}>
+            Tambah Bahan
+          </Button>
         </div>
         {inputs.map((row, index) => (
           <MixInputRow
@@ -186,6 +243,7 @@ export const MixPreparationForm = ({ lokasiId, onSuccess }: MixPreparationFormPr
             index={index}
             row={row}
             lokasiId={lokasiId}
+            stocks={validationStocks}
             onChangeMaterial={updateInputMaterial}
             onChangeQuantity={updateInputQuantity}
             onRemove={removeInputRow}
@@ -195,17 +253,21 @@ export const MixPreparationForm = ({ lokasiId, onSuccess }: MixPreparationFormPr
 
       <div>
         <label className="block text-sm font-medium mb-1">Keterangan</label>
-        <Input type="text" value={keterangan} onChange={e => setKeterangan(e.target.value)} placeholder="Opsional" />
+        <Input
+          type="text"
+          value={keterangan}
+          onChange={(e) => setKeterangan(e.target.value)}
+          placeholder="Opsional"
+        />
       </div>
 
       <div className="flex gap-3">
-        <Button onClick={handleSubmit} disabled={createMix.isPending}>Simpan</Button>
-        <Button variant="outline" onClick={() => {
-          setOutputMaterialId('')
-          setOutputQuantity(0)
-          setInputs([{ material_id: '', quantity: 0 }])
-          setKeterangan('')
-        }}>Reset</Button>
+        <Button onClick={handleSubmit} disabled={createMix.isPending}>
+          Simpan
+        </Button>
+        <Button variant="outline" onClick={resetForm}>
+          Reset
+        </Button>
       </div>
     </div>
   )

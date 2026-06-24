@@ -1,8 +1,13 @@
 import { Card, CardContent } from '../../components/ui/card'
 import { Badge } from '../../components/ui/badge'
 import { ItemLokasi } from '../../services/inventory'
-import { ArrowDown, ArrowUp, ArrowRightLeft, Settings } from 'lucide-react'
-
+import { ArrowDown, ArrowUp, ArrowRightLeft, Settings, Cake } from 'lucide-react'
+ 
+const isMixPreparationPastry = (movement: ItemLokasi) => {
+  if (movement.tipe !== 'mix_preparation') return false
+  const ref = movement.reference
+  return ref?.output_type === 'produk' || !!ref?.output_produk_id
+}
 interface PergerakanStokTableProps {
   movements: ItemLokasi[]
   isLoading: boolean
@@ -18,18 +23,21 @@ const formatDate = (dateString: string) => {
   })
 }
 
-const getTipeLabel = (tipe: string) => {
+const getTipeLabel = (movement: ItemLokasi) => {
+  if (isMixPreparationPastry(movement)) return 'Mix Prep. Pastry'
   const labels: Record<string, string> = {
     masuk: 'Masuk',
     keluar: 'Keluar',
     transfer: 'Transfer',
     adjustment: 'Adjustment',
-    mix_preparation: 'Mix Preparation'
+    mix_preparation: 'Mix Preparation',
   }
-  return labels[tipe] || tipe
+  return labels[movement.tipe] || movement.tipe
 }
 
-const getTipeVariant = (tipe: string): 'default' | 'destructive' | 'secondary' | 'outline' => {
+const getTipeVariant = (movement: ItemLokasi): 'default' | 'destructive' | 'secondary' | 'outline' => {
+  if (isMixPreparationPastry(movement)) return 'outline'
+  const tipe = movement.tipe
   if (tipe === 'masuk') return 'default'
   if (tipe === 'keluar') return 'destructive'
   if (tipe === 'transfer') return 'secondary'
@@ -37,7 +45,9 @@ const getTipeVariant = (tipe: string): 'default' | 'destructive' | 'secondary' |
   return 'outline'
 }
 
-const getTipeIcon = (tipe: string) => {
+const getTipeIcon = (movement: ItemLokasi) => {
+  if (isMixPreparationPastry(movement)) return <Cake className="h-3 w-3" />
+  const tipe = movement.tipe
   if (tipe === 'masuk') return <ArrowDown className="h-3 w-3" />
   if (tipe === 'keluar') return <ArrowUp className="h-3 w-3" />
   if (tipe === 'transfer') return <ArrowRightLeft className="h-3 w-3" />
@@ -128,8 +138,9 @@ export const PergerakanStokTable = ({
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
               {movements.map((movement) => {
-                const tipeVariant = getTipeVariant(movement.tipe)
-                const tipeIcon = getTipeIcon(movement.tipe)
+                const tipeVariant = getTipeVariant(movement)
+                const tipeIcon = getTipeIcon(movement)
+                const mixPastry = isMixPreparationPastry(movement)
                 const quantityDisplay = movement.quantity > 0 ? `+${movement.quantity}` : movement.quantity?.toString()
 
                 return (
@@ -156,10 +167,20 @@ export const PergerakanStokTable = ({
                       </div>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <Badge variant={tipeVariant} className="flex items-center gap-1 w-fit">
-                        {tipeIcon}
-                        {getTipeLabel(movement.tipe)}
-                      </Badge>
+                      <div className="space-y-1">
+                        <Badge
+                          variant={tipeVariant}
+                          className={`flex items-center gap-1 w-fit ${mixPastry ? 'border-amber-300 bg-amber-50 text-amber-800' : ''}`}
+                        >
+                          {tipeIcon}
+                          {getTipeLabel(movement)}
+                        </Badge>
+                        {mixPastry && movement.reference?.output_produk && (
+                          <div className="text-xs text-gray-500">
+                            Hasil: {movement.reference.output_produk.nama}
+                          </div>
+                        )}
+                      </div>
                     </td>
                     <td className="px-6 py-4">
                       <div className="space-y-1">

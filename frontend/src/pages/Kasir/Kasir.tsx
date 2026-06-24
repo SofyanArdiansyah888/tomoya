@@ -17,6 +17,7 @@ import { Card } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { useCreateOrder } from '../../hooks/useOrders'
 import { formatPrice } from '../../lib/formatPrice'
+import { isPastryProductCategory } from '../../lib/stockDivision'
 import { produkLokasiService } from '../../services/inventory'
 import { productService } from '../../services/products'
 import { shiftService } from '../../services/shift'
@@ -283,10 +284,12 @@ export const Kasir = () => {
     const stock = productStocks?.find(s => s.produk_id === productId)
     return stock?.quantity || 0
   }
-
+ 
   // Helper function to check if product is out of stock
   const isProductOutOfStock = (product: any): boolean => {
-    // Only check stock for stockable products
+    if (isPastryProductCategory(product.kategori?.nama)) {
+      return false
+    }
     if (!product.stockable) {
       return false
     }

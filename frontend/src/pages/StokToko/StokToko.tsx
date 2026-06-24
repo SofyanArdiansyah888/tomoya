@@ -4,13 +4,19 @@ import { Card, CardContent } from '../../components/ui/card'
 import { Input } from '../../components/ui/input'
 import { Button } from '../../components/ui/button'
 import { Search, ArrowDown, Edit } from 'lucide-react'
-import { itemLokasiService, MaterialStock } from '../../services/inventory'
+import { itemLokasiService, produkLokasiService, MaterialStock, ProdukStock } from '../../services/inventory'
 import { StokTokoTable } from './StokTokoTable'
 import { TransferStokModal } from './TransferStokModal'
 import { AdjustStokModal } from './AdjustStokModal'
 import { toast } from 'sonner'
+import { StockDivision, getStockDivisionLabel } from '../../lib/stockDivision'
 
-export const StokToko = () => {
+interface StokTokoProps {
+  division: StockDivision
+}
+
+export const StokToko = ({ division }: StokTokoProps) => {
+  const isPastry = division === 'pastry'
   const [searchTerm, setSearchTerm] = useState('')
   const [debouncedSearchTerm, setDebouncedSearchTerm] = useState('')
   const [isTransferModalOpen, setIsTransferModalOpen] = useState(false)
@@ -20,25 +26,32 @@ export const StokToko = () => {
 
   const queryClient = useQueryClient()
 
-  // Debounce search term
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchTerm(searchTerm)
     }, 300)
-
     return () => clearTimeout(timer)
   }, [searchTerm])
 
-  // Fetch shop inventory (material stock from item_lokasi)
-  const { data: inventory = [], isLoading } = useQuery({
-    queryKey: ['item-lokasi-toko', debouncedSearchTerm],
-    queryFn: () => itemLokasiService.getCurrentStock('toko'),
-    staleTime: 0
+  const materialQuery = useQuery({
+    queryKey: ['item-lokasi-toko', division, debouncedSearchTerm],
+    queryFn: () => itemLokasiService.getCurrentStock('toko', undefined, division),
+    enabled: !isPastry,
+    staleTime: 0,
   })
 
+  const produkQuery = useQuery({
+    queryKey: ['produk-lokasi-toko', division, debouncedSearchTerm],
+    queryFn: () => produkLokasiService.getCurrentStock('toko', undefined, division),
+    enabled: isPastry,
+    staleTime: 0,
+  })
 
-  // Filter inventory by search term
-  const filteredInventory = inventory.filter((item: MaterialStock) => {
+  const isLoading = isPastry ? produkQuery.isLoading : materialQuery.isLoading
+  const materialInventory = (materialQuery.data ?? []) as MaterialStock[]
+  const produkInventory = (produkQuery.data ?? []) as ProdukStock[]
+
+  const filteredMaterialInventory = materialInventory.filter((item) => {
     const searchLower = debouncedSearchTerm.toLowerCase()
     return (
       item.material?.name?.toLowerCase().includes(searchLower) ||
@@ -48,37 +61,44 @@ export const StokToko = () => {
     )
   })
 
-  // Calculate statistics
+  const filteredProdukInventory = produkInventory.filter((item) => {
+    const searchLower = debouncedSearchTerm.toLowerCase()
+    return (
+      item.produk?.nama?.toLowerCase().includes(searchLower) ||
+      item.produk?.kode?.toLowerCase().includes(searchLower) ||
+      item.produk?.kategori?.nama?.toLowerCase().includes(searchLower) ||
+      item.lokasi?.nama?.toLowerCase().includes(searchLower) ||
+      item.lokasi?.kode?.toLowerCase().includes(searchLower)
+    )
+  })
+
+  const filteredInventory = isPastry ? filteredProdukInventory : filteredMaterialInventory
+
   const totalItems = filteredInventory.length
-  const lowStockItems = filteredInventory.filter(
-    (item: MaterialStock) =>
-      item.material &&
-      typeof item.quantity === 'number' &&
-      item.quantity <= (item.material.min_stock || 0)
-  ).length
+  const lowStockItems = isPastry
+    ? filteredProdukInventory.filter(
+        (item) => typeof item.quantity === 'number' && item.quantity <= (item.min_stock_level ?? 0)
+      ).length
+    : filteredMaterialInventory.filter(
+        (item) =>
+          item.material &&
+          typeof item.quantity === 'number' &&
+          item.quantity <= (item.material.min_stock || 0)
+      ).length
   const outOfStockItems = filteredInventory.filter(
-    (item: MaterialStock) =>
-      typeof item.quantity === 'number' && item.quantity <= 0
+    (item) => typeof item.quantity === 'number' && item.quantity <= 0
   ).length
   const totalQuantity = filteredInventory.reduce(
-    (sum: number, item: MaterialStock) => sum + (typeof item.quantity === 'number' ? item.quantity : 0),
+    (sum, item) => sum + (typeof item.quantity === 'number' ? item.quantity : 0),
     0
   )
 
-  const handleOpenTransferModal = () => {
-    setIsTransferModalOpen(true)
-  }
-
-  const handleCloseTransferModal = () => {
-    setIsTransferModalOpen(false)
-  }
-
-  const handleOpenAdjustModal = () => {
-    setIsAdjustModalOpen(true)
-  }
-
-  const handleCloseAdjustModal = () => {
-    setIsAdjustModalOpen(false)
+  const invalidateStockQueries = () => {
+    if (isPastry) {
+      queryClient.invalidateQueries({ queryKey: ['produk-lokasi-toko', division] })
+    } else {
+      queryClient.invalidateQueries({ queryKey: ['item-lokasi-toko', division] })
+    }
   }
 
   const handleTransfer = async (data: {
@@ -95,12 +115,11 @@ export const StokToko = () => {
         quantity: data.quantity,
         keterangan: data.keterangan,
       })
-
       toast.success('Transfer stok berhasil dilakukan')
-      queryClient.invalidateQueries({ queryKey: ['item-lokasi-toko'] })
+      invalidateStockQueries()
       queryClient.invalidateQueries({ queryKey: ['item-lokasi-gudang'] })
       queryClient.invalidateQueries({ queryKey: ['stock-movements'] })
-      handleCloseTransferModal()
+      setIsTransferModalOpen(false)
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Gagal melakukan transfer stok')
     } finally {
@@ -116,16 +135,15 @@ export const StokToko = () => {
     setIsAdjusting(true)
     try {
       await itemLokasiService.adjustStock({
-        lokasi_id: 2, // Default toko id
+        lokasi_id: 2,
         material_id: data.material_id,
         quantity: data.quantity,
         keterangan: data.keterangan,
       })
-
       toast.success('Adjustment stok berhasil dilakukan')
-      queryClient.invalidateQueries({ queryKey: ['item-lokasi-toko'] })
+      invalidateStockQueries()
       queryClient.invalidateQueries({ queryKey: ['stock-movements'] })
-      handleCloseAdjustModal()
+      setIsAdjustModalOpen(false)
     } catch (error: any) {
       toast.error(error.response?.data?.message || 'Gagal melakukan adjustment stok')
     } finally {
@@ -135,15 +153,15 @@ export const StokToko = () => {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Stok Toko</h1>
+        <h1 className="text-2xl font-bold text-gray-900">Stok Toko {getStockDivisionLabel(division)}</h1>
         <p className="text-sm text-gray-600 mt-1">
-          Kelola dan pantau stok material di semua toko
+          {isPastry
+            ? 'Pantau stok produk jadi pastry/cake di toko (dari Mix Preparation)'
+            : `Kelola dan pantau stok material ${getStockDivisionLabel(division).toLowerCase()} di toko`}
         </p>
       </div>
 
-      {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <Card>
           <CardContent className="p-4">
@@ -173,7 +191,6 @@ export const StokToko = () => {
         </Card>
       </div>
 
-      {/* Search and Filters */}
       <Card>
         <CardContent className="p-4">
           <div className="flex items-center space-x-4">
@@ -181,48 +198,54 @@ export const StokToko = () => {
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
               <Input
                 type="text"
-                placeholder="Cari material atau toko..."
+                placeholder={isPastry ? 'Cari produk atau toko...' : 'Cari material atau toko...'}
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
               />
             </div>
-            <Button onClick={handleOpenTransferModal} className="flex items-center gap-2">
-              <ArrowDown className="h-4 w-4" />
-              Ambil dari Gudang
-            </Button>
-            <Button onClick={handleOpenAdjustModal} variant="outline" className="flex items-center gap-2">
-              <Edit className="h-4 w-4" />
-              Adjustment Stok
-            </Button>
+            {!isPastry && (
+              <>
+                <Button onClick={() => setIsTransferModalOpen(true)} className="flex items-center gap-2">
+                  <ArrowDown className="h-4 w-4" />
+                  Ambil dari Gudang
+                </Button>
+                <Button onClick={() => setIsAdjustModalOpen(true)} variant="outline" className="flex items-center gap-2">
+                  <Edit className="h-4 w-4" />
+                  Adjustment Stok
+                </Button>
+              </>
+            )}
           </div>
         </CardContent>
       </Card>
 
-      {/* Inventory Table */}
-      <StokTokoTable 
-        inventory={filteredInventory} 
+      <StokTokoTable
+        mode={isPastry ? 'produk' : 'material'}
+        inventory={filteredInventory}
         isLoading={isLoading}
       />
 
-      {/* Transfer Modal */}
-      <TransferStokModal
-        isOpen={isTransferModalOpen}
-        onClose={handleCloseTransferModal}
-        onTransfer={handleTransfer}
-        isLoading={isTransferring}
-      />
-
-      {/* Adjustment Modal */}
-      <AdjustStokModal
-        isOpen={isAdjustModalOpen}
-        onClose={handleCloseAdjustModal}
-        onAdjust={handleAdjust}
-        isLoading={isAdjusting}
-        lokasiType="toko"
-        defaultLokasiId={2}
-      />
+      {!isPastry && (
+        <>
+          <TransferStokModal
+            isOpen={isTransferModalOpen}
+            onClose={() => setIsTransferModalOpen(false)}
+            onTransfer={handleTransfer}
+            isLoading={isTransferring}
+            stockDivision={division}
+          />
+          <AdjustStokModal
+            isOpen={isAdjustModalOpen}
+            onClose={() => setIsAdjustModalOpen(false)}
+            onAdjust={handleAdjust}
+            isLoading={isAdjusting}
+            lokasiType="toko"
+            defaultLokasiId={2}
+            stockDivision={division}
+          />
+        </>
+      )}
     </div>
   )
 }
-

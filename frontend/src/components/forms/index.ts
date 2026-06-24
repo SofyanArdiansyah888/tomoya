@@ -1,6 +1,7 @@
 export { SupplierSelect } from './SupplierSelect'
 export { LokasiSelect } from './LokasiSelect'
 export { MaterialSelect } from './MaterialSelect'
+export { ProdukSelect } from './ProdukSelect'
 export { CategorySelect } from './CategorySelect'
 export { ResepSelect } from './ResepSelect'
 export { PengeluaranForm } from '../../pages/Pengeluaran/PengeluaranForm'

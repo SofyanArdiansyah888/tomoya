@@ -107,9 +107,11 @@ export const Sidebar = ({ isOpen = true, onClose }: SidebarProps) => {
       group: 'Manajemen Stok',
       items: [
         { name: 'Stok Gudang', href: '/stok-gudang', icon: Boxes },
-        { name: 'Stok Toko', href: '/stok-toko', icon: ShoppingBag },
+        { name: 'Stok Toko Pastry', href: '/stok-toko/pastry', icon: ShoppingBag },
+        { name: 'Stok Toko Minuman', href: '/stok-toko/minuman', icon: ShoppingBag },
         { name: 'Pergerakan Stok', href: '/pergerakan-stok', icon: ArrowRightLeft },
-        { name: 'Mix Preparation', href: '/mix-preparation', icon: Settings },
+        { name: 'Mix Preparation Pastry', href: '/mix-preparation/pastry', icon: Settings },
+        { name: 'Mix Preparation Minuman', href: '/mix-preparation/minuman', icon: Settings },
       ]
     },
     {
@@ -154,6 +156,12 @@ export const Sidebar = ({ isOpen = true, onClose }: SidebarProps) => {
       return userMenu.some(menu => normalize(menu) === normalizedGroup)
     }
 
+    // Legacy submenu names map to the new split menu items
+    const LEGACY_SUBMENU_ALIASES: Record<string, string[]> = {
+      'stok toko': ['Stok Toko Pastry', 'Stok Toko Minuman'],
+      'mix preparation': ['Mix Preparation Pastry', 'Mix Preparation Minuman'],
+    }
+
     // Helper function to check if user has access to a submenu item
     const hasSubmenuAccess = (submenuName: string): boolean => {
       // Check if submenu name exists in user's submenu array
@@ -161,7 +169,18 @@ export const Sidebar = ({ isOpen = true, onClose }: SidebarProps) => {
         return false
       }
       const normalizedSubmenu = normalize(submenuName)
-      return userSubmenu.some(submenu => normalize(submenu) === normalizedSubmenu)
+      if (userSubmenu.some(submenu => normalize(submenu) === normalizedSubmenu)) {
+        return true
+      }
+
+      for (const [legacyName, expandedNames] of Object.entries(LEGACY_SUBMENU_ALIASES)) {
+        const hasLegacy = userSubmenu.some(submenu => normalize(submenu) === legacyName)
+        if (hasLegacy && expandedNames.some(name => normalize(name) === normalizedSubmenu)) {
+          return true
+        }
+      }
+
+      return false
     }
 
     // Debug: log user data

@@ -62,4 +62,62 @@ class Produk extends Model
     {
         return $this->belongsTo(Recipe::class, 'resep_id');
     }
+
+    public function isPastryDivision(): bool
+    {
+        $this->loadMissing('kategori');
+
+        return \App\Support\StockDivision::isPastryCategoryName($this->kategori?->nama);
+    }
+
+    /**
+     * Produk yang stoknya dilacak di produk_lokasi (bukan dari bahan resep).
+     */
+    public function usesProdukLokasiStock(?int $lokasiId = null): bool
+    {
+        $this->loadMissing('kategori');
+ 
+        if ($this->isPastryDivision()) {
+            return true;
+        }
+
+        $query = ProdukLokasi::where('produk_id', $this->id);
+
+        if ($lokasiId !== null) {
+            $query->where('lokasi_id', $lokasiId);
+        }
+
+        return $query->exists();
+    }
+
+    public function scopeStockDivision($query, string $division)
+    {
+        $pastryCategoryIds = \App\Support\StockDivision::pastryCategoryIds();
+
+        if ($division === \App\Support\StockDivision::PASTRY) {
+            return $query->whereIn('kategori_id', $pastryCategoryIds);
+        }
+
+        if ($division === \App\Support\StockDivision::MINUMAN) {
+            return $query->where(function ($q) use ($pastryCategoryIds) {
+                $q->whereNotIn('kategori_id', $pastryCategoryIds)
+                    ->orWhereNull('kategori_id');
+            });
+        } 
+
+        return $query;
+    }
+
+    public static function belongsToStockDivision(int $produkId, string $division): bool
+    {
+        $produk = self::with('kategori')->find($produkId);
+
+        if (!$produk) {
+            return false;
+        }
+
+        $isPastry = $produk->isPastryDivision();
+
+        return $division === \App\Support\StockDivision::PASTRY ? $isPastry : !$isPastry;
+    }
 }
