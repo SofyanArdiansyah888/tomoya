@@ -7,10 +7,17 @@ use App\Models\ProdukLokasi;
 use App\Models\Produk;
 use App\Models\Lokasi;
 use App\Models\ItemLokasi;
+use App\Models\MixPreparation;
+use App\Models\Pesanan;
+use App\Models\ProdukLokasiPergerakan;
+use App\Support\ProdukStockMovement; 
 use App\Support\StockDivision;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse; 
 use App\Http\Resources\ApiResource;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class ProdukLokasiController extends Controller
 {
@@ -300,6 +307,158 @@ class ProdukLokasiController extends Controller
             return response()->json([
                 'message' => 'Error calculating product stock: ' . $e->getMessage(),
                 'error' => $e->getTraceAsString()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get product stock movements (pergerakan stok pastry).
+     */
+    public function getPergerakan(Request $request): JsonResponse
+    {
+        $query = ProdukLokasiPergerakan::with([
+            'lokasi',
+            'produk.kategori',
+            'user',
+            'reference' => fn (MorphTo $morphTo) => $morphTo->morphWith([
+                MixPreparation::class => ['outputProduk'],
+                Pesanan::class => [],
+            ]),
+        ]);
+
+        if ($request->filled('lokasi_id')) {
+            $query->where('lokasi_id', $request->lokasi_id);
+        }
+
+        if ($request->filled('produk_id')) {
+            $query->where('produk_id', $request->produk_id);
+        }
+
+        if ($request->filled('tipe_lokasi')) {
+            if ($request->tipe_lokasi === 'toko') {
+                $query->toko();
+            }
+        }
+
+        if ($request->filled('tipe')) {
+            $query->where('tipe', $request->tipe);
+        }
+
+        if ($request->filled('alasan')) {
+            $query->where('alasan', $request->alasan);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('tanggal', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('tanggal', '<=', $request->date_to);
+        }
+
+        $query->orderBy('tanggal', 'desc')->orderBy('id', 'desc');
+
+        $perPage = min(max((int) $request->get('per_page', 15), 1), 100);
+        $movements = $query->paginate($perPage);
+
+        return response()->json([
+            'data' => ApiResource::collection($movements->items()),
+            'meta' => [
+                'current_page' => $movements->currentPage(),
+                'per_page' => $movements->perPage(),
+                'total' => $movements->total(),
+                'last_page' => $movements->lastPage(),
+                'from' => $movements->firstItem(),
+                'to' => $movements->lastItem(),
+            ],
+            'links' => [
+                'first' => $movements->url(1),
+                'last' => $movements->url($movements->lastPage()),
+                'prev' => $movements->previousPageUrl(),
+                'next' => $movements->nextPageUrl(),
+            ],
+        ]);
+    }
+
+    /**
+     * Manual adjustment for pastry product stock.
+     */
+    public function adjustStock(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $userId = $user ? $user->id : 1;
+
+        $validated = $request->validate([
+            'lokasi_id' => 'required|exists:lokasi,id',
+            'produk_id' => 'required|exists:produk,id',
+            'quantity' => 'required|integer|not_in:0',
+            'alasan' => [
+                'required',
+                Rule::in([
+                    ProdukLokasiPergerakan::ALASAN_RUSAK,
+                    ProdukLokasiPergerakan::ALASAN_KONSUMSI_OWNER,
+                    ProdukLokasiPergerakan::ALASAN_KOREKSI,
+                    ProdukLokasiPergerakan::ALASAN_LAINNYA,
+                ]),
+            ],
+            'keterangan' => 'nullable|string',
+        ]);
+
+        if ($validated['alasan'] === ProdukLokasiPergerakan::ALASAN_LAINNYA && empty(trim($validated['keterangan'] ?? ''))) {
+            return response()->json(['message' => 'Keterangan wajib diisi jika alasan Lainnya'], 422);
+        }
+
+        $lokasi = Lokasi::findOrFail($validated['lokasi_id']);
+        if ($lokasi->tipe !== 'toko') {
+            return response()->json(['message' => 'Lokasi harus berupa toko'], 400);
+        }
+
+        if (!Produk::belongsToStockDivision($validated['produk_id'], StockDivision::PASTRY)) {
+            return response()->json(['message' => 'Produk harus kategori pastry'], 422);
+        }
+
+        $alasanLabels = [
+            ProdukLokasiPergerakan::ALASAN_RUSAK => 'Rusak',
+            ProdukLokasiPergerakan::ALASAN_KONSUMSI_OWNER => 'Konsumsi owner',
+            ProdukLokasiPergerakan::ALASAN_KOREKSI => 'Koreksi',
+            ProdukLokasiPergerakan::ALASAN_LAINNYA => 'Lainnya',
+        ];
+
+        $keterangan = trim($validated['keterangan'] ?? '') !== ''
+            ? trim($validated['keterangan'])
+            : $alasanLabels[$validated['alasan']];
+
+        try {
+            return DB::transaction(function () use ($validated, $userId, $keterangan) {
+                $currentStock = ProdukLokasi::getQuantityAtLocation(
+                    $validated['lokasi_id'],
+                    $validated['produk_id'],
+                );
+
+                $movement = ProdukStockMovement::recordAdjustment(
+                    $validated['lokasi_id'],
+                    $validated['produk_id'],
+                    $validated['quantity'],
+                    $validated['alasan'],
+                    $keterangan,
+                    $userId,
+                );
+
+                return response()->json([
+                    'message' => 'Adjustment stok produk berhasil dilakukan',
+                    'data' => [
+                        'movement' => $movement->load(['lokasi', 'produk', 'user']),
+                        'stok_sebelum' => $currentStock,
+                        'stok_sesudah' => $movement->quantity_after,
+                    ],
+                ], 201);
+            });
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Gagal melakukan adjustment stok produk',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

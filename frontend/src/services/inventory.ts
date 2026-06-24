@@ -108,6 +108,63 @@ export interface ProdukStock {
   last_updated?: string
 }
 
+export type ProdukAdjustmentAlasan = 'rusak' | 'konsumsi_owner' | 'koreksi' | 'lainnya'
+
+export interface PesananReference {
+  id: number
+  no_pesanan?: string
+}
+
+export interface PembelianReference {
+  id: number
+  no_pembelian?: string
+}
+
+export interface ProdukLokasiPergerakan {
+  id: number
+  lokasi_id: number
+  produk_id: number
+  tipe: 'masuk' | 'keluar' | 'adjustment'
+  quantity: number
+  quantity_before: number
+  quantity_after: number
+  alasan?: ProdukAdjustmentAlasan | null
+  reference_type?: string
+  reference_id?: number
+  keterangan?: string
+  user_id?: number
+  tanggal: string
+  created_at: string
+  updated_at: string
+  lokasi?: Lokasi
+  produk?: {
+    id: number
+    nama: string
+    kode?: string
+    kategori?: {
+      id: number
+      nama: string
+    }
+  }
+  user?: {
+    id: number
+    name: string
+  }
+  reference?: MixPreparationReference | PesananReference
+}
+
+export interface ProdukLokasiPergerakanFilters {
+  lokasi_id?: number
+  produk_id?: number
+  tipe_lokasi?: 'toko'
+  tipe?: 'masuk' | 'keluar' | 'adjustment'
+  alasan?: ProdukAdjustmentAlasan
+  date_from?: string
+  date_to?: string
+  page?: number
+  per_page?: number
+}
+
 export interface ItemLokasi {
   id: number
   lokasi_id: number
@@ -138,7 +195,7 @@ export interface ItemLokasi {
     id: number
     name: string
   }
-  reference?: MixPreparationReference
+  reference?: MixPreparationReference | PembelianReference
 }
 
 export interface MixPreparationReference {
@@ -238,6 +295,22 @@ export const produkLokasiService = {
     if (stockDivision) params.stock_division = stockDivision
     const response = await api.get('/produk-lokasi/current-stock', { params })
     return response.data.data || response.data || []
+  },
+
+  async getProdukMovements(filters?: ProdukLokasiPergerakanFilters): Promise<{ data: ProdukLokasiPergerakan[]; meta: any; links: any }> {
+    const response = await api.get('/produk-lokasi/pergerakan', { params: filters })
+    return response.data
+  },
+
+  async adjustProdukStock(data: {
+    lokasi_id: number
+    produk_id: number
+    quantity: number
+    alasan: ProdukAdjustmentAlasan
+    keterangan?: string
+  }): Promise<any> {
+    const response = await api.post('/produk-lokasi/adjust', data)
+    return response.data
   },
 }
 

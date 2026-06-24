@@ -4,6 +4,7 @@ namespace App\Modules\Pembelian;
 
 use App\Models\Pembelian;
 use App\Models\ItemLokasi;
+use App\Models\Lokasi;
 use App\Models\MasterKas;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
@@ -11,6 +12,7 @@ use App\Modules\Pembelian\PembelianRequest;
 use App\Modules\Pembelian\PembelianResource;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
 
 class PembelianController extends Controller
 {
@@ -99,9 +101,11 @@ class PembelianController extends Controller
             $user = $request->user();
             $userId = $user ? $user->id : 1; // Fallback untuk development
             $dataToCreate = $request->validated();
-            $dataToCreate['user_id'] = $userId;
-
-            $lokasiId = isset($dataToCreate['lokasi_id']) && $dataToCreate['lokasi_id'] ? $dataToCreate['lokasi_id'] : 1;
+            $dataToCreate['user_id'] = $userId; 
+ 
+            $lokasiId = (int) ($dataToCreate['lokasi_id'] ?? 1);
+            $lokasi = $this->resolveGudangLokasi($lokasiId);
+            $lokasiId = $lokasi->id;
             $dataToCreate['lokasi_id'] = $lokasiId;
 
             // Cek apakah ada shift aktif untuk user dan lokasi
@@ -116,6 +120,10 @@ class PembelianController extends Controller
 
             // Create pembelian
             $pembelian = Pembelian::create($dataToCreate);
+            $pembelian->refresh();
+
+            $movementTanggal = Carbon::parse($pembelian->tanggal_pembelian)
+                ->setTime(now()->hour, now()->minute, now()->second);
 
             // Create items & record stock movement
             foreach ($request->items as $item) {
@@ -125,38 +133,14 @@ class PembelianController extends Controller
                     'harga_satuan' => $item['harga_satuan'],
                 ]);
 
-                // Get current stock
-                $currentStock = ItemLokasi::getCurrentStock($lokasiId, $item['material_id']) ?? 0;
-                $quantityAfter = $currentStock + $item['quantity'];
-
-                // Record stock movement (masuk)
-
-                $dataToCreate = [
-                    'lokasi_id' => $lokasiId,
-                    'material_id' => $item['material_id'],
-                    'tipe' => 'masuk',
-                    'reference_type' => Pembelian::class,
-                    'reference_id' => $pembelian->id,
-                    'keterangan' => 'Pembelian material dari supplier',
-                    'user_id' => $pembelian->user_id,
-                    'tanggal' => $pembelian->tanggal_pembelian,
-                ];
-                if ($lokasiId == '1') {
-                    $dataToCreate['quantity_gudang'] = $item['quantity'];
-                    $dataToCreate['quantity_gudang_before'] = $currentStock;
-                    $dataToCreate['quantity_gudang_after'] = $quantityAfter;
-                    $dataToCreate['quantity'] = null;
-                    $dataToCreate['quantity_before'] = null;
-                    $dataToCreate['quantity_after'] = null;
-                } else if ($lokasiId == '2') {
-                    $dataToCreate['quantity'] = $item['quantity'];
-                    $dataToCreate['quantity_before'] = $currentStock;
-                    $dataToCreate['quantity_after'] = $quantityAfter;
-                    $dataToCreate['quantity_gudang'] = null;
-                    $dataToCreate['quantity_gudang_before'] = null;
-                    $dataToCreate['quantity_gudang_after'] = null;
-                }
-                ItemLokasi::create($dataToCreate);
+                $this->recordPembelianMasuk(
+                    $lokasi,
+                    (int) $item['material_id'],
+                    (int) $item['quantity'],
+                    $pembelian,
+                    $movementTanggal,
+                    $this->pembelianMovementKeterangan($pembelian),
+                );
             }
 
             // Update total harga
@@ -222,34 +206,30 @@ class PembelianController extends Controller
             foreach ($oldItems as $oldItem) {
                 $oldItemQtyMap[$oldItem['material_id']] = $oldItem['quantity'];
             }
-            $lokasiId = $request->input('lokasi_id', $pembelian->lokasi_id); // Fallback lokasi jika user tidak kirim field
+            $lokasiId = (int) $request->input('lokasi_id', $pembelian->lokasi_id);
+            $lokasi = $this->resolveGudangLokasi($lokasiId);
+            $lokasiId = $lokasi->id;
 
             // Update pembelian data
             $dataToUpdate = $request->except('items');
+            $dataToUpdate['lokasi_id'] = $lokasiId;
             $pembelian->update($dataToUpdate);
-            $pembelian->refresh(); // Refresh untuk mendapatkan data terbaru
-
+            $pembelian->refresh();
+ 
             // Update items if provided
             if ($request->has('items')) {
+                $movementTanggal = Carbon::parse($pembelian->tanggal_pembelian)
+                    ->setTime(now()->hour, now()->minute, now()->second);
+
                 // Rollback stok: record movement keluar untuk item lama
                 foreach ($oldItemQtyMap as $materialId => $qty) {
-                    $currentStock = ItemLokasi::getCurrentStock($lokasiId, $materialId);
-                    $quantityAfter = max(0, $currentStock - $qty);
-
-                    // Record stock movement (keluar) untuk rollback
-                    ItemLokasi::create([
-                        'lokasi_id' => $lokasiId,
-                        'material_id' => $materialId,
-                        'tipe' => 'keluar',
-                        'quantity' => -$qty,
-                        'quantity_before' => $currentStock,
-                        'quantity_after' => $quantityAfter,
-                        'reference_type' => Pembelian::class,
-                        'reference_id' => $pembelian->id,
-                        'keterangan' => 'Rollback pembelian (update)',
-                        'user_id' => $pembelian->user_id,
-                        'tanggal' => now(),
-                    ]);
+                    $this->recordPembelianKeluar(
+                        $lokasi,
+                        (int) $materialId,
+                        (int) $qty,
+                        $pembelian,
+                        $this->pembelianMovementKeterangan($pembelian, 'rollback_update'),
+                    );
                 }
 
                 // Delete existing items
@@ -263,24 +243,14 @@ class PembelianController extends Controller
                         'harga_satuan' => $item['harga_satuan'],
                     ]);
 
-                    // Get current stock after rollback
-                    $currentStock = ItemLokasi::getCurrentStock($lokasiId, $item['material_id']);
-                    $quantityAfter = $currentStock + $item['quantity'];
-
-                    // Record stock movement (masuk) untuk item baru
-                    ItemLokasi::create([
-                        'lokasi_id' => $lokasiId,
-                        'material_id' => $item['material_id'],
-                        'tipe' => 'masuk',
-                        'quantity' => $item['quantity'],
-                        'quantity_before' => $currentStock,
-                        'quantity_after' => $quantityAfter,
-                        'reference_type' => Pembelian::class,
-                        'reference_id' => $pembelian->id,
-                        'keterangan' => 'Pembelian material dari supplier (update)',
-                        'user_id' => $pembelian->user_id,
-                        'tanggal' => $pembelian->tanggal_pembelian,
-                    ]);
+                    $this->recordPembelianMasuk(
+                        $lokasi,
+                        (int) $item['material_id'],
+                        (int) $item['quantity'],
+                        $pembelian,
+                        $movementTanggal,
+                        $this->pembelianMovementKeterangan($pembelian, 'update'),
+                    );
                 }
 
                 // Update total harga
@@ -347,28 +317,18 @@ class PembelianController extends Controller
             DB::beginTransaction();
 
             $pembelian = Pembelian::findOrFail($id);
+            $lokasi = $this->resolveGudangLokasi((int) $pembelian->lokasi_id);
 
             // Rollback stok: record movement keluar untuk semua item pembelian
             $items = $pembelian->items()->get(['material_id', 'quantity']);
-            $lokasiId = $pembelian->lokasi_id;
             foreach ($items as $item) {
-                $currentStock = ItemLokasi::getCurrentStock($lokasiId, $item->material_id);
-                $quantityAfter = max(0, $currentStock - $item->quantity);
-
-                // Record stock movement (keluar) untuk rollback
-                ItemLokasi::create([
-                    'lokasi_id' => $lokasiId,
-                    'material_id' => $item->material_id,
-                    'tipe' => 'keluar',
-                    'quantity' => -$item->quantity,
-                    'quantity_before' => $currentStock,
-                    'quantity_after' => $quantityAfter,
-                    'reference_type' => Pembelian::class,
-                    'reference_id' => $pembelian->id,
-                    'keterangan' => 'Rollback pembelian (delete)',
-                    'user_id' => $pembelian->user_id,
-                    'tanggal' => now(),
-                ]);
+                $this->recordPembelianKeluar(
+                    $lokasi,
+                    (int) $item->material_id,
+                    (int) $item->quantity,
+                    $pembelian,
+                    $this->pembelianMovementKeterangan($pembelian, 'rollback_delete'),
+                );
             }
 
             // Hapus master kas terkait
@@ -423,5 +383,108 @@ class PembelianController extends Controller
                 'total_pengeluaran' => $totalPengeluaran,
             ]
         ]);
+    }
+
+    private function resolveGudangLokasi(int $requestedLokasiId): Lokasi
+    {
+        $requested = Lokasi::find($requestedLokasiId);
+        if ($requested && $requested->tipe === 'gudang') {
+            return $requested;
+        }
+
+        return Lokasi::where('tipe', 'gudang')->orderBy('id')->firstOrFail();
+    }
+
+    private function pembelianMovementKeterangan(Pembelian $pembelian, string $context = 'masuk'): string
+    {
+        $no = $pembelian->no_pembelian ?: ('#' . $pembelian->id);
+
+        return match ($context) {
+            'update' => "Pembelian {$no} (update)",
+            'rollback_update' => "Rollback pembelian {$no} (update)",
+            'rollback_delete' => "Rollback pembelian {$no} (hapus)",
+            default => "Pembelian {$no}",
+        };
+    }
+
+    private function recordPembelianMasuk(
+        Lokasi $lokasi,
+        int $materialId,
+        int $quantity,
+        Pembelian $pembelian,
+        $tanggal,
+        string $keterangan,
+    ): void {
+        $movement = [
+            'lokasi_id' => $lokasi->id,
+            'material_id' => $materialId,
+            'tipe' => 'masuk',
+            'reference_type' => Pembelian::class,
+            'reference_id' => $pembelian->id,
+            'keterangan' => $keterangan,
+            'user_id' => $pembelian->user_id,
+            'tanggal' => $tanggal,
+        ];
+
+        if ($lokasi->tipe === 'gudang') {
+            $currentStock = ItemLokasi::getCurrentGudangStock($lokasi->id, $materialId);
+            $movement['quantity_gudang'] = $quantity;
+            $movement['quantity_gudang_before'] = $currentStock;
+            $movement['quantity_gudang_after'] = $currentStock + $quantity;
+            $movement['quantity'] = null;
+            $movement['quantity_before'] = null;
+            $movement['quantity_after'] = null;
+        } else {
+            $currentStock = ItemLokasi::getCurrentStock($lokasi->id, $materialId) ?? 0;
+            $movement['quantity'] = $quantity;
+            $movement['quantity_before'] = $currentStock;
+            $movement['quantity_after'] = $currentStock + $quantity;
+            $movement['quantity_gudang'] = null;
+            $movement['quantity_gudang_before'] = null;
+            $movement['quantity_gudang_after'] = null;
+        }
+
+        ItemLokasi::create($movement);
+    }
+
+    private function recordPembelianKeluar(
+        Lokasi $lokasi,
+        int $materialId,
+        int $quantity,
+        Pembelian $pembelian,
+        string $keterangan,
+    ): void {
+        $movement = [
+            'lokasi_id' => $lokasi->id,
+            'material_id' => $materialId,
+            'tipe' => 'keluar',
+            'reference_type' => Pembelian::class,
+            'reference_id' => $pembelian->id,
+            'keterangan' => $keterangan,
+            'user_id' => $pembelian->user_id,
+            'tanggal' => now(),
+        ];
+
+        if ($lokasi->tipe === 'gudang') {
+            $currentStock = ItemLokasi::getCurrentGudangStock($lokasi->id, $materialId);
+            $quantityAfter = max(0, $currentStock - $quantity);
+            $movement['quantity_gudang'] = -$quantity;
+            $movement['quantity_gudang_before'] = $currentStock;
+            $movement['quantity_gudang_after'] = $quantityAfter;
+            $movement['quantity'] = null;
+            $movement['quantity_before'] = null;
+            $movement['quantity_after'] = null;
+        } else {
+            $currentStock = ItemLokasi::getCurrentStock($lokasi->id, $materialId) ?? 0;
+            $quantityAfter = max(0, $currentStock - $quantity);
+            $movement['quantity'] = -$quantity;
+            $movement['quantity_before'] = $currentStock;
+            $movement['quantity_after'] = $quantityAfter;
+            $movement['quantity_gudang'] = null;
+            $movement['quantity_gudang_before'] = null;
+            $movement['quantity_gudang_after'] = null;
+        }
+
+        ItemLokasi::create($movement);
     }
 }

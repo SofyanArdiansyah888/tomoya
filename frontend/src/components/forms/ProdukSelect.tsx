@@ -15,6 +15,8 @@ interface ProdukSelectProps {
   searchable?: boolean 
   stockable?: boolean
   stockDivision?: StockDivision
+  showAllOption?: boolean
+  allOptionLabel?: string
 }
 
 export const ProdukSelect = ({ 
@@ -25,7 +27,9 @@ export const ProdukSelect = ({
   className = "",
   searchable = true,
   stockable,
-  stockDivision
+  stockDivision,
+  showAllOption = false,
+  allOptionLabel = "Semua Produk",
 }: ProdukSelectProps) => {
   const [searchTerm, _] = useState('')
   const [localSearchTerm, setLocalSearchTerm] = useState('')
@@ -49,10 +53,20 @@ export const ProdukSelect = ({
     )
   }, [products?.data, localSearchTerm, searchable])
 
+  const ALL_VALUE = "__all__"
+
+  const handleValueChange = (selectedValue: string) => {
+    if (showAllOption && selectedValue === ALL_VALUE) {
+      onChange('')
+    } else {
+      onChange(selectedValue)
+    }
+  }
+
   return (
     <Select
-      value={value}
-      onValueChange={onChange}
+      value={value !== '' ? value : (showAllOption ? ALL_VALUE : '')}
+      onValueChange={handleValueChange}
       disabled={disabled || isLoading}
     >
       <SelectTrigger className={className}>
@@ -76,14 +90,21 @@ export const ProdukSelect = ({
             {searchable && localSearchTerm ? "Tidak ada hasil" : "Tidak ada produk"}
           </div>
         ) : (
-          filteredProducts.map((product) => (
+          <>
+            {showAllOption && (
+              <SelectItem value={ALL_VALUE}>
+                {allOptionLabel}
+              </SelectItem>
+            )}
+            {filteredProducts.map((product) => (
             <SelectItem
               key={product.id}
               value={product.id.toString()}
             >
               {product.nama} - {product.kode}
             </SelectItem>
-          ))
+          ))}
+          </>
         )}
       </SelectContent>
     </Select>

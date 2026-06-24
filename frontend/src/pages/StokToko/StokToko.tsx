@@ -8,8 +8,10 @@ import { itemLokasiService, produkLokasiService, MaterialStock, ProdukStock } fr
 import { StokTokoTable } from './StokTokoTable'
 import { TransferStokModal } from './TransferStokModal'
 import { AdjustStokModal } from './AdjustStokModal'
+import { AdjustProdukStokModal } from './AdjustProdukStokModal'
 import { toast } from 'sonner'
 import { StockDivision, getStockDivisionLabel } from '../../lib/stockDivision'
+import { ProdukAdjustmentAlasan } from '../../services/inventory'
 
 interface StokTokoProps {
   division: StockDivision
@@ -151,13 +153,39 @@ export const StokToko = ({ division }: StokTokoProps) => {
     }
   }
 
+  const handleAdjustProduk = async (data: {
+    produk_id: number
+    quantity: number
+    alasan: ProdukAdjustmentAlasan
+    keterangan?: string
+  }) => {
+    setIsAdjusting(true)
+    try {
+      await produkLokasiService.adjustProdukStock({
+        lokasi_id: 2,
+        produk_id: data.produk_id,
+        quantity: data.quantity,
+        alasan: data.alasan,
+        keterangan: data.keterangan,
+      })
+      toast.success('Adjustment stok pastry berhasil dilakukan')
+      invalidateStockQueries()
+      queryClient.invalidateQueries({ queryKey: ['produk-stock-movements'] })
+      setIsAdjustModalOpen(false)
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Gagal melakukan adjustment stok pastry')
+    } finally {
+      setIsAdjusting(false)
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Stok Toko {getStockDivisionLabel(division)}</h1>
         <p className="text-sm text-gray-600 mt-1">
           {isPastry
-            ? 'Pantau stok produk jadi pastry/cake di toko (dari Mix Preparation)'
+            ? 'Pantau dan sesuaikan stok produk jadi pastry/cake di toko'
             : `Kelola dan pantau stok material ${getStockDivisionLabel(division).toLowerCase()} di toko`}
         </p>
       </div>
@@ -204,18 +232,23 @@ export const StokToko = ({ division }: StokTokoProps) => {
                 className="pl-10"
               />
             </div>
-            {!isPastry && (
-              <>
-                <Button onClick={() => setIsTransferModalOpen(true)} className="flex items-center gap-2">
-                  <ArrowDown className="h-4 w-4" />
-                  Ambil dari Gudang
-                </Button>
-                <Button onClick={() => setIsAdjustModalOpen(true)} variant="outline" className="flex items-center gap-2">
-                  <Edit className="h-4 w-4" />
-                  Adjustment Stok
-                </Button>
-              </>
-            )}
+          {isPastry ? (
+            <Button onClick={() => setIsAdjustModalOpen(true)} variant="outline" className="flex items-center gap-2">
+              <Edit className="h-4 w-4" />
+              Adjustment Stok
+            </Button>
+          ) : (
+            <>
+              <Button onClick={() => setIsTransferModalOpen(true)} className="flex items-center gap-2">
+                <ArrowDown className="h-4 w-4" />
+                Ambil dari Gudang
+              </Button>
+              <Button onClick={() => setIsAdjustModalOpen(true)} variant="outline" className="flex items-center gap-2">
+                <Edit className="h-4 w-4" />
+                Adjustment Stok
+              </Button>
+            </>
+          )}
           </div>
         </CardContent>
       </Card>
@@ -226,7 +259,7 @@ export const StokToko = ({ division }: StokTokoProps) => {
         isLoading={isLoading}
       />
 
-      {!isPastry && (
+      {!isPastry ? (
         <>
           <TransferStokModal
             isOpen={isTransferModalOpen}
@@ -245,6 +278,14 @@ export const StokToko = ({ division }: StokTokoProps) => {
             stockDivision={division}
           />
         </>
+      ) : (
+        <AdjustProdukStokModal
+          isOpen={isAdjustModalOpen}
+          onClose={() => setIsAdjustModalOpen(false)}
+          onAdjust={handleAdjustProduk}
+          isLoading={isAdjusting}
+          defaultLokasiId={2}
+        />
       )}
     </div>
   )

@@ -8,7 +8,7 @@ use App\Models\Lokasi;
 use App\Models\Material; 
 use App\Models\MixPreparation;
 use App\Models\Produk;
-use App\Models\ProdukLokasi;
+use App\Support\ProdukStockMovement;
 use App\Support\StockDivision;
 use Carbon\Carbon;
 use Illuminate\Http\JsonResponse;
@@ -130,12 +130,15 @@ class MixPreparationController extends Controller
                 ]);
 
                 $created = $this->createInputMovements($validated, $header, $userId);
-
+ 
                 if ($isPastry) {
-                    $this->incrementProdukLokasi(
+                    ProdukStockMovement::recordMixPreparationOutput(
                         $validated['lokasi_id'],
                         $validated['output_produk_id'],
                         $validated['output_quantity'],
+                        $header,
+                        $userId,
+                        $validated['keterangan'] ?? null,
                     );
                 } else {
                     $created[] = $this->createMaterialOutputMovement($validated, $header, $userId);
@@ -211,11 +214,6 @@ class MixPreparationController extends Controller
             'user_id' => $userId,
             'tanggal' => now(),
         ]);
-    }
-
-    private function incrementProdukLokasi(int $lokasiId, int $produkId, int $quantity): void
-    {
-        ProdukLokasi::adjustQuantity($lokasiId, $produkId, $quantity);
     }
 
     private function buildMovementKeterangan(MixPreparation $header, string $defaultText, ?string $userKeterangan): string

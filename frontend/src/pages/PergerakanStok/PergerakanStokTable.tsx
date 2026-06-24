@@ -1,12 +1,20 @@
 import { Card, CardContent } from '../../components/ui/card'
 import { Badge } from '../../components/ui/badge'
-import { ItemLokasi } from '../../services/inventory'
+import { ItemLokasi, MixPreparationReference } from '../../services/inventory'
 import { ArrowDown, ArrowUp, ArrowRightLeft, Settings, Cake } from 'lucide-react'
- 
+
+const isMixPreparationReference = (
+  ref: ItemLokasi['reference']
+): ref is MixPreparationReference => {
+  if (!ref) return false
+  return 'output_type' in ref || 'output_produk_id' in ref || 'output_material_id' in ref
+}
+
 const isMixPreparationPastry = (movement: ItemLokasi) => {
   if (movement.tipe !== 'mix_preparation') return false
   const ref = movement.reference
-  return ref?.output_type === 'produk' || !!ref?.output_produk_id
+  if (!isMixPreparationReference(ref)) return false
+  return ref.output_type === 'produk' || !!ref.output_produk_id
 }
 interface PergerakanStokTableProps {
   movements: ItemLokasi[]
@@ -175,7 +183,7 @@ export const PergerakanStokTable = ({
                           {tipeIcon}
                           {getTipeLabel(movement)}
                         </Badge>
-                        {mixPastry && movement.reference?.output_produk && (
+                        {mixPastry && isMixPreparationReference(movement.reference) && movement.reference.output_produk && (
                           <div className="text-xs text-gray-500">
                             Hasil: {movement.reference.output_produk.nama}
                           </div>

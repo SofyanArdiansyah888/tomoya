@@ -8,7 +8,7 @@ use App\Models\ItemPesanan;
 use App\Models\ArusKas;
 use App\Models\ItemLokasi;
 use App\Models\Produk;
-use App\Models\ProdukLokasi;
+use App\Support\ProdukStockMovement;
 use App\Models\Material;
 use App\Models\ShiftKasir;
 use Illuminate\Http\Request;
@@ -196,11 +196,11 @@ class PesananController extends Controller
  
     /**
      * Batalkan efek stok bersih pesanan (reverse pergerakan keluar yang masih tersisa).
-     */
+     */ 
     private function reverseOrderStockMovements(Pesanan $pesanan, int $userId): void
     {
         $this->reverseOrderMaterialStockMovements($pesanan, $userId);
-        $this->reverseOrderProdukStock($pesanan);
+        $this->reverseOrderProdukStock($pesanan, $userId);
     }
 
     /**
@@ -243,7 +243,7 @@ class PesananController extends Controller
     /**
      * Kembalikan stok produk pastry (produk_lokasi) saat pesanan diubah/dibatalkan.
      */
-    private function reverseOrderProdukStock(Pesanan $pesanan): void
+    private function reverseOrderProdukStock(Pesanan $pesanan, int $userId): void
     { 
         foreach ($pesanan->itemPesanan as $item) {
             $produk = $item->produk ?? Produk::with('kategori')->find($item->produk_id);
@@ -252,10 +252,12 @@ class PesananController extends Controller
                 continue;
             }
 
-            ProdukLokasi::adjustQuantity(
+            ProdukStockMovement::recordOrderReversal(
                 (int) $pesanan->lokasi_id,
                 (int) $produk->id,
-                (int) $item->quantity
+                (int) $item->quantity,
+                $pesanan,
+                $userId,
             );
         }
     }
@@ -268,7 +270,7 @@ class PesananController extends Controller
         $produk->loadMissing('kategori');
 
         if ($produk->usesProdukLokasiStock((int) $pesanan->lokasi_id)) {
-            $this->deductProdukLokasiStock($pesanan, $produk, $item);
+            $this->deductProdukLokasiStock($pesanan, $produk, $item, $userId, $keteranganSuffix);
 
             return;
         }
@@ -323,15 +325,17 @@ class PesananController extends Controller
     /**
      * Kurangi stok produk jadi pastry di produk_lokasi (tanpa blokir jika stok kurang).
      */
-    private function deductProdukLokasiStock(Pesanan $pesanan, Produk $produk, array $item): void
+    private function deductProdukLokasiStock(Pesanan $pesanan, Produk $produk, array $item, int $userId, string $suffix = ''): void
     {
         $qty = (int) $item['quantity'];
 
-        ProdukLokasi::adjustQuantity(
+        ProdukStockMovement::recordOrderDeduction(
             (int) $pesanan->lokasi_id,
             (int) $produk->id,
-            -$qty,
-            allowNegative: true
+            $qty,
+            $pesanan,
+            $userId,
+            $suffix,
         );
     }
 

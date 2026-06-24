@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\ItemLokasi;
 use App\Models\Lokasi;
 use App\Models\MixPreparation;
+use App\Models\Pembelian;
 use Illuminate\Http\Request; 
 use Illuminate\Http\JsonResponse;
 use App\Http\Resources\ApiResource;
@@ -139,11 +140,12 @@ class ItemLokasiController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = ItemLokasi::with([
-            'lokasi',
+            'lokasi', 
             'material',
             'user',
             'reference' => fn (MorphTo $morphTo) => $morphTo->morphWith([
                 MixPreparation::class => ['outputProduk', 'outputMaterial'],
+                Pembelian::class => [],
             ]),
         ]);
 
