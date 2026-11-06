@@ -6,24 +6,21 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-        // Schema::table('item_pesanan', function (Blueprint $table) {
-        //     $table->decimal('hpp', 12, 2)->default(0)->after('harga');
-        // });
+        if (!Schema::hasColumn('item_pesanan', 'hpp')) {
+            Schema::table('item_pesanan', function (Blueprint $table) {
+                $table->decimal('hpp', 12, 2)->default(0)->after('harga');
+            });
+        }
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
-        // Schema::table('item_pesanan', function (Blueprint $table) {
-        //     $table->dropColumn('hpp');
-        // });
+        if (Schema::hasColumn('item_pesanan', 'hpp')) {
+            Schema::table('item_pesanan', function (Blueprint $table) {
+                $table->dropColumn('hpp');
+            });
+        }
     }
 };
-
