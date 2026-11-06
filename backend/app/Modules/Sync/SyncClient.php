@@ -286,6 +286,10 @@ class SyncClient
      */
     private function assertNoFailures(string $direction, string $table, array $stats): void
     {
+        if (!empty($stats['missing_table'])) {
+            $where = $direction === 'push' ? 'database cloud' : 'database lokal';
+            throw new RuntimeException("Tabel {$table} tidak ada di {$where}. Database belum lengkap: jalankan \"php artisan sync:remote migrate-fresh\" (cloud) atau \"php artisan migrate\" (lokal). Data ditahan, tidak hilang.");
+        }
         if (!empty($stats['failed'])) {
             $where = $direction === 'push' ? 'server tujuan' : 'database lokal';
             throw new RuntimeException("{$stats['failed']} baris {$table} gagal diterapkan di {$where}. Sinkron tabel ini ditahan dan akan dicoba lagi; lihat sync_logs.");
