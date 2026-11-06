@@ -9,10 +9,18 @@ REM
 REM  Sesuaikan dua baris di bawah dengan lokasi di PC kasir.
 REM ==========================================================================
 
-set "BACKEND_DIR=C:\laragon\www\tomoya\backend"
-set "PHP_BIN=php"
+set "BACKEND_DIR=D:\01Localserv-Tomoya\htdocs\tomoya\backend"
+set "PHP_BIN=D:\01Localserv-Tomoya\php\php.exe"
+
+REM Jika php.exe tidak ada di lokasi di atas, pakai "php" dari PATH.
+if not exist "%PHP_BIN%" set "PHP_BIN=php"
 
 cd /d "%BACKEND_DIR%"
+if not exist artisan (
+  echo [ERROR] File artisan tidak ditemukan di %BACKEND_DIR%. Periksa BACKEND_DIR di file ini.
+  pause
+  exit /b 1
+)
 
 :loop
 echo [%date% %time%] Menjalankan scheduler sinkronisasi...

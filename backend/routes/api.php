@@ -50,6 +50,7 @@ Route::prefix('sync')->middleware(SyncTokenMiddleware::class)->group(function ()
     Route::get('ping', [SyncController::class, 'ping']);
     Route::post('push', [SyncController::class, 'push']);
     Route::post('pull', [SyncController::class, 'pull']);
+    Route::post('maintenance', [SyncController::class, 'maintenance']);
 });
 
 // Protected routes

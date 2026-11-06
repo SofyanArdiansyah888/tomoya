@@ -127,9 +127,23 @@ class SyncRegistry
             ?? throw new \InvalidArgumentException("Tabel {$table} tidak disinkronkan.");
     }
 
+    /**
+     * Nama tabel tersinkron yang benar-benar ada di database ini
+     * (database lama bisa saja belum punya sebagian tabel).
+     */
     public static function names(): array
     {
-        return array_keys(self::tables());
+        static $cache = null;
+
+        if ($cache === null) {
+            $cache = array_values(array_filter(
+                array_keys(self::tables()),
+                fn ($t) => \Illuminate\Support\Facades\Schema::hasTable($t)
+                    && \Illuminate\Support\Facades\Schema::hasColumn($t, 'uuid'),
+            ));
+        }
+
+        return $cache;
     }
 
     /**

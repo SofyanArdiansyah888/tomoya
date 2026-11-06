@@ -40,6 +40,10 @@ return [
     // Cloud menampilkan peringatan jika client tidak sync lebih dari N menit.
     'offline_alert_minutes' => (int) env('SYNC_OFFLINE_ALERT_MINUTES', 5),
 
+    // Izinkan menjalankan migration di instance ini lewat endpoint sync (untuk hosting tanpa SSH).
+    // Aktifkan sementara saja, lalu set false lagi.
+    'allow_maintenance' => (bool) env('SYNC_ALLOW_MAINTENANCE', false),
+
     // Backup database harian (hanya MySQL).
     'backup' => [
         'enabled' => (bool) env('SYNC_BACKUP_ENABLED', true),

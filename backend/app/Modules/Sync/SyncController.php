@@ -96,6 +96,57 @@ class SyncController extends Controller
         return response()->json($result);
     }
 
+    /**
+     * Jalankan migration di instance ini (hosting tanpa SSH).
+     * Butuh SYNC_TOKEN + SYNC_ALLOW_MAINTENANCE=true. migrate_fresh butuh konfirmasi eksplisit.
+     */
+    public function maintenance(Request $request): JsonResponse
+    {
+        if (!config('sync.allow_maintenance')) {
+            return response()->json(['message' => 'Maintenance tidak diizinkan. Set SYNC_ALLOW_MAINTENANCE=true di .env server.'], 403);
+        }
+
+        $validated = $request->validate([
+            'action' => 'required|in:status,migrate,migrate_fresh',
+            'confirm' => 'nullable|string',
+        ]);
+
+        @set_time_limit(600);
+        $action = $validated['action'];
+
+        if ($action === 'migrate_fresh' && ($validated['confirm'] ?? '') !== 'HAPUS SEMUA DATA') {
+            return response()->json(['message' => 'migrate_fresh butuh confirm = "HAPUS SEMUA DATA".'], 422);
+        }
+
+        $command = match ($action) {
+            'status' => ['migrate:status', []],
+            'migrate' => ['migrate', ['--force' => true]],
+            'migrate_fresh' => ['migrate:fresh', ['--force' => true]],
+        };
+
+        try {
+            $exit = \Illuminate\Support\Facades\Artisan::call($command[0], $command[1]);
+            $output = \Illuminate\Support\Facades\Artisan::output();
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Gagal: ' . $e->getMessage(),
+                'server_time' => now()->toIso8601String(),
+            ], 500);
+        }
+
+        if ($action !== 'status') {
+            // Catatan: migrate:fresh mengosongkan sync_logs juga; log ini muncul setelahnya.
+            SyncState::log('info', "Maintenance {$action} dijalankan (exit {$exit}).", [], 'maintenance');
+        }
+
+        return response()->json([
+            'action' => $action,
+            'exit_code' => $exit,
+            'output' => $output,
+            'server_time' => now()->toIso8601String(),
+        ], $exit === 0 ? 200 : 500);
+    }
+
     /** Status sinkron untuk ditampilkan di UI (butuh login pengguna). */
     public function status(SyncStatus $status): JsonResponse
     {

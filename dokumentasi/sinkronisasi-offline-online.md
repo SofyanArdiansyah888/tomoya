@@ -57,6 +57,7 @@ Setelah itu, pengguna perlu **login ulang di cloud** (token login tidak disinkro
 | `php artisan sync:run --push-only` / `--pull-only` | Hanya satu arah |
 | `php artisan sync:bootstrap` | Isi database lokal kosong dari cloud |
 | `php artisan sync:bootstrap --push` | Setup awal: isi cloud kosong dari PC kasir |
+| `php artisan sync:remote status\|migrate\|migrate-fresh` | Jalankan migration di cloud dari PC kasir (hosting tanpa SSH). Butuh `SYNC_ALLOW_MAINTENANCE=true` di `.env` cloud; set `false` lagi setelahnya |
 | `php artisan stock:recalculate [--fix]` | Hitung ulang saldo stok dari riwayat pergerakan |
 | `php artisan backup:database` | Backup MySQL (otomatis tiap hari 23:30 di PC kasir) |
 
