@@ -33,7 +33,15 @@ class SyncService
                 $results[$table] = ['error' => 'tabel tidak dikenal'];
                 continue;
             }
-            if (SyncRegistry::get($table)['kind'] === 'snapshot' && $mode !== SyncApplier::MODE_BOOTSTRAP) {
+            $isSnapshot = SyncRegistry::get($table)['kind'] === 'snapshot';
+            if (!$isSnapshot && !in_array($table, SyncRegistry::names(), true)) {
+                // Tabel belum ada / belum dimigrasi di sini: tolak (failed) supaya pengirim menahan datanya.
+                $count = count($batch['rows'] ?? []);
+                SyncState::log('error', "Tabel {$table} tidak ada atau belum punya kolom sync di database ini. Jalankan migration (sync:remote migrate-fresh untuk database cloud yang tidak lengkap).", [], $direction, $table);
+                $results[$table] = ['inserted' => 0, 'updated' => 0, 'skipped' => 0, 'conflicts' => 0, 'failed' => $count, 'missing_table' => true];
+                continue;
+            }
+            if ($isSnapshot && $mode !== SyncApplier::MODE_BOOTSTRAP) {
                 $results[$table] = ['error' => 'snapshot hanya untuk bootstrap'];
                 continue;
             }
