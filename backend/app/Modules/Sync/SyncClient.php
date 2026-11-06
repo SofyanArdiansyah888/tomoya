@@ -199,6 +199,15 @@ class SyncClient
         return $received;
     }
 
+    /** Jalankan migration di server (hosting tanpa SSH). */
+    public function remoteMaintenance(string $action, ?string $confirm = null): array
+    {
+        return $this->post('/api/sync/maintenance', array_filter([
+            'action' => $action,
+            'confirm' => $confirm,
+        ]));
+    }
+
     /** Cek koneksi & selisih jam. */
     public function ping(): array
     {
