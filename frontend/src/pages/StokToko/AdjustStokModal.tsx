@@ -7,6 +7,7 @@ import { itemLokasiService } from '../../services/inventory'
 import { materialService } from '../../services/material'
 import { MaterialSelect } from '../../components/forms'
 import { toast } from 'sonner'
+import { StockDivision } from '../../lib/stockDivision'
 
 interface AdjustStokModalProps {
   isOpen: boolean
@@ -15,6 +16,7 @@ interface AdjustStokModalProps {
   isLoading: boolean
   lokasiType: 'gudang' | 'toko'
   defaultLokasiId: number
+  stockDivision?: StockDivision
 }
 
 export const AdjustStokModal = ({
@@ -23,7 +25,8 @@ export const AdjustStokModal = ({
   onAdjust,
   isLoading,
   lokasiType,
-  defaultLokasiId
+  defaultLokasiId,
+  stockDivision
 }: AdjustStokModalProps) => {
   const [selectedMaterialId, setSelectedMaterialId] = useState<number | ''>('')
   const [quantity, setQuantity] = useState('')
@@ -103,6 +106,7 @@ export const AdjustStokModal = ({
             }}
             placeholder="Pilih Material"
             searchable={true}
+            stockDivision={stockDivision}
           />
         </div>
 

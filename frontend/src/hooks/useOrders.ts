@@ -29,6 +29,7 @@ export const useCreateOrder = () => {
       queryClient.invalidateQueries({ queryKey: ['shift-kasir'] })
       // Refresh product stock after order to reflect stock changes
       queryClient.invalidateQueries({ queryKey: ['product-stocks-by-recipe'] })
+      queryClient.invalidateQueries({ queryKey: ['produk-lokasi-toko'] })
       toast.success('Pesanan berhasil dibuat!')
     },
     onError: (error: any) => {
@@ -68,7 +69,8 @@ export const useUpdateOrder = () => {
       queryClient.invalidateQueries({ queryKey: ['unpaid-orders'] })
       queryClient.invalidateQueries({ queryKey: ['shift-kasir'] })
       queryClient.invalidateQueries({ queryKey: ['product-stocks-by-recipe'] })
-      toast.success('Pesanan berhasil diperbarui!')
+      queryClient.invalidateQueries({ queryKey: ['produk-lokasi-toko'] })
+      toast.success('Pesanan berhasil diperbarui!') 
     },
     onError: (error: any) => {
       toast.error(error.response?.data?.message || 'Gagal memperbarui pesanan')

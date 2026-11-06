@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Lokasi extends Model
 {
+    use \App\Traits\HasSyncUuid;
+
     protected $table = 'lokasi';
     
     protected $fillable = [

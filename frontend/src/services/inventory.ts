@@ -1,6 +1,7 @@
 import { api } from './api'
 import { PaginatedResponse } from '../types/api'
 import { Material } from '@/types/material'
+import { StockDivision } from '@/lib/stockDivision'
 
 export interface InventoriGudang {
   id: number
@@ -78,8 +79,90 @@ export interface ProdukLokasi {
   produk?: {
     id: number
     nama: string
+    kode?: string
     harga: number
+    kategori?: {
+      id: number
+      nama: string
+    }
   }
+}
+
+export interface ProdukStock {
+  lokasi_id: number
+  produk_id: number
+  quantity: number
+  available_quantity?: number
+  min_stock_level?: number
+  lokasi?: Lokasi
+  produk?: {
+    id: number
+    nama: string
+    kode: string
+    harga: number
+    kategori?: {
+      id: number
+      nama: string
+    }
+  }
+  last_updated?: string
+}
+
+export type ProdukAdjustmentAlasan = 'rusak' | 'konsumsi_owner' | 'koreksi' | 'lainnya'
+
+export interface PesananReference {
+  id: number
+  no_pesanan?: string
+}
+
+export interface PembelianReference {
+  id: number
+  no_pembelian?: string
+}
+
+export interface ProdukLokasiPergerakan {
+  id: number
+  lokasi_id: number
+  produk_id: number
+  tipe: 'masuk' | 'keluar' | 'adjustment'
+  quantity: number
+  quantity_before: number
+  quantity_after: number
+  alasan?: ProdukAdjustmentAlasan | null
+  reference_type?: string
+  reference_id?: number
+  keterangan?: string
+  user_id?: number
+  tanggal: string
+  created_at: string
+  updated_at: string
+  lokasi?: Lokasi
+  produk?: {
+    id: number
+    nama: string
+    kode?: string
+    kategori?: {
+      id: number
+      nama: string
+    }
+  }
+  user?: {
+    id: number
+    name: string
+  }
+  reference?: MixPreparationReference | PesananReference
+}
+
+export interface ProdukLokasiPergerakanFilters {
+  lokasi_id?: number
+  produk_id?: number
+  tipe_lokasi?: 'toko'
+  tipe?: 'masuk' | 'keluar' | 'adjustment'
+  alasan?: ProdukAdjustmentAlasan
+  date_from?: string
+  date_to?: string
+  page?: number
+  per_page?: number
 }
 
 export interface ItemLokasi {
@@ -111,6 +194,25 @@ export interface ItemLokasi {
   user?: {
     id: number
     name: string
+  }
+  reference?: MixPreparationReference | PembelianReference
+}
+
+export interface MixPreparationReference {
+  id: number
+  output_type?: 'produk' | 'material'
+  output_produk_id?: number | null
+  output_material_id?: number | null
+  output_quantity?: number
+  output_produk?: {
+    id: number
+    nama: string
+    kode?: string
+  }
+  output_material?: {
+    id: number
+    name: string
+    sku?: string
   }
 }
 
@@ -148,11 +250,16 @@ export const inventoryService = {
 
 export const produkLokasiService = {
   // Get inventory by location
-  async getInventoryByLocation(lokasiId: number): Promise<ProdukLokasi[]> {
-    const response = await api.get('/produk-lokasi', {
-      params: { lokasi_id: lokasiId }
-    })
+  async getInventoryByLocation(lokasiId: number, produkId?: number): Promise<ProdukLokasi[]> {
+    const params: Record<string, number> = { lokasi_id: lokasiId }
+    if (produkId) params.produk_id = produkId
+    const response = await api.get('/produk-lokasi', { params })
     return response.data.data || response.data
+  },
+
+  async getProdukStockAtLocation(lokasiId: number, produkId: number): Promise<ProdukLokasi | null> {
+    const records = await this.getInventoryByLocation(lokasiId, produkId)
+    return records[0] ?? null
   },
 
   // Get all inventory by location type
@@ -176,7 +283,35 @@ export const produkLokasiService = {
       params: { lokasi_id: lokasiId }
     })
     return response.data.data || response.data
-  }
+  },
+
+  async getCurrentStock(
+    tipe: 'gudang' | 'toko',
+    lokasiId?: number,
+    stockDivision?: StockDivision
+  ): Promise<ProdukStock[]> {
+    const params: Record<string, string | number> = { tipe_lokasi: tipe }
+    if (lokasiId) params.lokasi_id = lokasiId
+    if (stockDivision) params.stock_division = stockDivision
+    const response = await api.get('/produk-lokasi/current-stock', { params })
+    return response.data.data || response.data || []
+  },
+
+  async getProdukMovements(filters?: ProdukLokasiPergerakanFilters): Promise<{ data: ProdukLokasiPergerakan[]; meta: any; links: any }> {
+    const response = await api.get('/produk-lokasi/pergerakan', { params: filters })
+    return response.data
+  },
+
+  async adjustProdukStock(data: {
+    lokasi_id: number
+    produk_id: number
+    quantity: number
+    alasan: ProdukAdjustmentAlasan
+    keterangan?: string
+  }): Promise<any> {
+    const response = await api.post('/produk-lokasi/adjust', data)
+    return response.data
+  },
 }
 
 export interface MaterialStock {
@@ -211,10 +346,13 @@ export const itemLokasiService = {
   },
 
   // Get current stock by location type (gudang/toko)
-  async getCurrentStock(tipe: 'gudang' | 'toko', lokasiId?: number): Promise<MaterialStock[]> {
-    const params: any = { tipe_lokasi: tipe }
+  async getCurrentStock(tipe: 'gudang' | 'toko', lokasiId?: number, stockDivision?: StockDivision): Promise<MaterialStock[]> {
+    const params: Record<string, string | number> = { tipe_lokasi: tipe }
     if (lokasiId) {
       params.lokasi_id = lokasiId
+    }
+    if (stockDivision) {
+      params.stock_division = stockDivision
     }
     const response = await api.get('/item-lokasi/current-stock', { params })
     return response.data.data || response.data || []
@@ -271,7 +409,8 @@ export const itemLokasiService = {
   },
   async createMixPreparation(data: {
     lokasi_id: number
-    output_material_id: number
+    output_material_id?: number
+    output_produk_id?: number
     output_quantity: number
     inputs: { material_id: number; quantity: number }[]
     keterangan?: string

@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Supplier extends Model
 {
+    use \App\Traits\HasSyncUuid;
+
     protected $table = 'supplier';
     
     protected $guarded=[];
@@ -34,18 +36,7 @@ class Supplier extends Model
      */
     public static function generateKode(): string
     {
-        $prefix = 'SUP';
-        $lastSupplier = static::orderBy('id', 'desc')->first();
-        
-        if ($lastSupplier && $lastSupplier->kode) {
-            // Extract number from existing kode
-            $lastNumber = (int) substr($lastSupplier->kode, 3);
-            $newNumber = $lastNumber + 1;
-        } else {
-            $newNumber = 1;
-        }
-        
-        return $prefix . str_pad($newNumber, 4, '0', STR_PAD_LEFT);
+        return \App\Support\DocumentNumber::sequential(static::class, 'kode', 'SUP');
     }
 
     public function produk(): HasMany

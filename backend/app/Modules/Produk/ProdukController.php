@@ -4,6 +4,7 @@ namespace App\Modules\Produk;
 
 use App\Http\Controllers\Controller;
 use App\Models\Produk;
+use App\Support\StockDivision;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use App\Modules\Produk\ProdukRequest;
@@ -46,6 +47,16 @@ class ProdukController extends Controller
         // Filter by favorite
         if ($request->has('favorite') && $request->boolean('favorite')) {
             $query->where('favorite', true);
+        }
+ 
+        // Filter by stockable
+        if ($request->has('stockable') && $request->stockable !== '') {
+            $query->where('stockable', $request->boolean('stockable'));
+        }
+ 
+        // Filter by stock division (pastry = non-minuman product categories)
+        if ($request->filled('stock_division') && StockDivision::isValidDivision($request->stock_division)) {
+            $query->stockDivision($request->stock_division);
         }
 
         $produks = $query->get();
@@ -119,8 +130,12 @@ class ProdukController extends Controller
             DB::transaction(function () use ($produkId) {
                 DB::table('produk_lokasi')->where('produk_id', $produkId)->delete();
                 // Bersihkan item pesanan yatim (pesanan sudah tidak ada)
-                DB::table('item_pesanan')->where('produk_id', $produkId)->delete();
-                DB::table('produk')->where('id', $produkId)->delete();
+                $itemQuery = DB::table('item_pesanan')->where('produk_id', $produkId);
+                \App\Modules\Sync\Tombstone::recordQuery('item_pesanan', $itemQuery);
+                $itemQuery->delete();
+                $produkQuery = DB::table('produk')->where('id', $produkId);
+                \App\Modules\Sync\Tombstone::recordQuery('produk', $produkQuery);
+                $produkQuery->delete();
             });
 
             return response()->json(null, 204);

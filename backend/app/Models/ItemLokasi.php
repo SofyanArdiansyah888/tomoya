@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ItemLokasi extends Model
 {
+    use \App\Traits\HasSyncUuid;
+
     protected $table = 'item_lokasi';
     
     protected $fillable = [

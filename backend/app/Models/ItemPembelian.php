@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ItemPembelian extends Model
 {
+    use \App\Traits\HasSyncUuid;
+
     protected $table = 'item_pembelian';
     
     protected $fillable = [

@@ -19,6 +19,7 @@ interface CategorySelectProps {
   error?: string
   searchable?: boolean
   filterPredicate?: (category: any) => boolean
+  includeAllOption?: boolean
 }
 
 export const CategorySelect = ({
@@ -29,7 +30,8 @@ export const CategorySelect = ({
   className,
   error,
   searchable = true,
-  filterPredicate
+  filterPredicate,
+  includeAllOption = false
 }: CategorySelectProps) => {
   const [searchTerm, setSearchTerm] = useState('')
 
@@ -42,13 +44,11 @@ export const CategorySelect = ({
   const filteredCategories = useMemo(() => {
     const source = categories?.data || []
     const byPredicate = filterPredicate ? source.filter(filterPredicate) : source
-    if (!searchable) return byPredicate
-    if (!searchTerm && (value === undefined || value === null)) return []
-    if (!searchTerm) return byPredicate
+    if (!searchable || !searchTerm) return byPredicate
     return byPredicate.filter((category: any) =>
       category.nama.toLowerCase().includes(searchTerm.toLowerCase())
     )
-  }, [categories?.data, searchTerm, searchable, filterPredicate, value])
+  }, [categories?.data, searchTerm, searchable, filterPredicate])
 
   return (
     <div className="w-full">
@@ -83,15 +83,12 @@ export const CategorySelect = ({
             </div>
           ) : (
             <>
-              <SelectItem
-                key={0}
-                value=" "
-                disabled={false}
-              >
-                Semua Kategori
-              </SelectItem>
-              {
-                filteredCategories.map((category) => (
+              {includeAllOption && (
+                <SelectItem key={0} value=" ">
+                  Semua Kategori
+                </SelectItem>
+              )}
+              {filteredCategories.map((category) => (
                   <SelectItem
                     key={category.id}
                     value={String(category.id)}
@@ -99,10 +96,8 @@ export const CategorySelect = ({
                   >
                     {category.nama}
                   </SelectItem>
-                ))
-              }
+              ))}
             </>
-
           )}
         </SelectContent>
       </Select>

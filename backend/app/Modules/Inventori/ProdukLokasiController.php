@@ -5,10 +5,19 @@ namespace App\Modules\Inventori;
 use App\Http\Controllers\Controller;
 use App\Models\ProdukLokasi;
 use App\Models\Produk;
+use App\Models\Lokasi;
 use App\Models\ItemLokasi;
+use App\Models\MixPreparation;
+use App\Models\Pesanan;
+use App\Models\ProdukLokasiPergerakan;
+use App\Support\ProdukStockMovement; 
+use App\Support\StockDivision;
 use Illuminate\Http\Request;
-use Illuminate\Http\JsonResponse;
+use Illuminate\Http\JsonResponse; 
 use App\Http\Resources\ApiResource;
+use Illuminate\Database\Eloquent\Relations\MorphTo;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\Rule;
 
 class ProdukLokasiController extends Controller
 {
@@ -32,9 +41,101 @@ class ProdukLokasiController extends Controller
         if ($request->has('lokasi_id')) {
             $query->where('lokasi_id', $request->lokasi_id);
         }
+ 
+        // Filter berdasarkan produk_id jika ada
+        if ($request->has('produk_id')) {
+            $query->where('produk_id', $request->produk_id);
+        }
 
         $produkLokasis = $query->get();
         return response()->json(ApiResource::collection($produkLokasis));
+    }
+
+    /**
+     * Get current product stock by location type (for Stok Toko Pastry).
+     * When stock_division is set, includes all products in that division (qty 0 if no record).
+     */
+    public function getCurrentStock(Request $request): JsonResponse
+    {
+        $tipeLokasi = $request->get('tipe_lokasi', 'toko');
+        $lokasiId = $request->get('lokasi_id');
+        $stockDivision = $request->get('stock_division');
+
+        $lokasiQuery = Lokasi::where('tipe', $tipeLokasi);
+        if ($lokasiId) {
+            $lokasiQuery->where('id', $lokasiId);
+        }
+        $lokasis = $lokasiQuery->get();
+
+        $result = [];
+
+        if ($stockDivision && StockDivision::isValidDivision($stockDivision)) {
+            $produks = Produk::with('kategori')
+                ->stockDivision($stockDivision)
+                ->orderBy('nama')
+                ->get();
+
+            foreach ($lokasis as $lokasi) {
+                foreach ($produks as $produk) {
+                    $result[] = $this->buildProdukStockRow($lokasi, $produk);
+                }
+            }
+        } else {
+            $query = ProdukLokasi::with(['lokasi', 'produk.kategori'])
+                ->whereHas('lokasi', function ($q) use ($tipeLokasi) {
+                    $q->where('tipe', $tipeLokasi);
+                });
+
+            if ($lokasiId) {
+                $query->where('lokasi_id', $lokasiId);
+            }
+
+            foreach ($query->get() as $record) {
+                if (!$record->produk || !$record->lokasi) {
+                    continue;
+                }
+                $result[] = $this->buildProdukStockRow($record->lokasi, $record->produk, $record);
+            }
+        }
+
+        return response()->json(['data' => $result]);
+    }
+
+    private function buildProdukStockRow(Lokasi $lokasi, Produk $produk, ?ProdukLokasi $record = null): array
+    {
+        if ($record === null) {
+            $record = ProdukLokasi::where('lokasi_id', $lokasi->id)
+                ->where('produk_id', $produk->id)
+                ->first();
+        }
+
+        $quantity = $record->quantity ?? 0;
+
+        return [
+            'lokasi_id' => $lokasi->id,
+            'produk_id' => $produk->id,
+            'quantity' => $quantity,
+            'available_quantity' => $record->available_quantity ?? $quantity,
+            'min_stock_level' => $record->min_stock_level ?? 0,
+            'lokasi' => [
+                'id' => $lokasi->id,
+                'nama' => $lokasi->nama,
+                'kode' => $lokasi->kode,
+                'alamat' => $lokasi->alamat,
+                'tipe' => $lokasi->tipe,
+            ],
+            'produk' => [
+                'id' => $produk->id,
+                'nama' => $produk->nama,
+                'kode' => $produk->kode,
+                'harga' => (float) $produk->harga,
+                'kategori' => $produk->kategori ? [
+                    'id' => $produk->kategori->id,
+                    'nama' => $produk->kategori->nama,
+                ] : null,
+            ],
+            'last_updated' => $record?->last_updated_at?->toIso8601String(),
+        ];
     }
 
     /**
@@ -126,16 +227,34 @@ class ProdukLokasiController extends Controller
         }
 
         try {
-            // Get all stockable products with recipes
-            $produks = Produk::where('stockable', true)
-                ->whereNotNull('resep_id')
-                ->with(['resep.recipeMaterials.material'])
+            $pastryCategoryIds = StockDivision::pastryCategoryIds();
+
+            $produks = Produk::with(['resep.recipeMaterials.material', 'kategori'])
+                ->where(function ($query) use ($pastryCategoryIds, $lokasiId) {
+                    $query->where('stockable', true)
+                        ->orWhereIn('kategori_id', $pastryCategoryIds)
+                        ->orWhereIn('id', function ($sub) use ($lokasiId) {
+                            $sub->select('produk_id')
+                                ->from('produk_lokasi')
+                                ->where('lokasi_id', $lokasiId);
+                        });
+                })
                 ->get();
 
-            $result = [];
+            $result = []; 
 
             foreach ($produks as $produk) {
-                if (!$produk->resep || !$produk->resep->recipeMaterials || $produk->resep->recipeMaterials->isEmpty()) {
+                $produk->loadMissing('kategori');
+
+                if ($produk->usesProdukLokasiStock((int) $lokasiId)) {
+                    $result[] = [
+                        'produk_id' => $produk->id,
+                        'quantity' => ProdukLokasi::getQuantityAtLocation((int) $lokasiId, (int) $produk->id),
+                    ];
+                    continue;
+                }
+
+                if (!$produk->stockable || !$produk->resep || !$produk->resep->recipeMaterials || $produk->resep->recipeMaterials->isEmpty()) {
                     // Product has no recipe or no materials, stock is 0
                     $result[] = [
                         'produk_id' => $produk->id,
@@ -188,6 +307,158 @@ class ProdukLokasiController extends Controller
             return response()->json([
                 'message' => 'Error calculating product stock: ' . $e->getMessage(),
                 'error' => $e->getTraceAsString()
+            ], 500);
+        }
+    }
+
+    /**
+     * Get product stock movements (pergerakan stok pastry).
+     */
+    public function getPergerakan(Request $request): JsonResponse
+    {
+        $query = ProdukLokasiPergerakan::with([
+            'lokasi',
+            'produk.kategori',
+            'user',
+            'reference' => fn (MorphTo $morphTo) => $morphTo->morphWith([
+                MixPreparation::class => ['outputProduk'],
+                Pesanan::class => [],
+            ]),
+        ]);
+
+        if ($request->filled('lokasi_id')) {
+            $query->where('lokasi_id', $request->lokasi_id);
+        }
+
+        if ($request->filled('produk_id')) {
+            $query->where('produk_id', $request->produk_id);
+        }
+
+        if ($request->filled('tipe_lokasi')) {
+            if ($request->tipe_lokasi === 'toko') {
+                $query->toko();
+            }
+        }
+
+        if ($request->filled('tipe')) {
+            $query->where('tipe', $request->tipe);
+        }
+
+        if ($request->filled('alasan')) {
+            $query->where('alasan', $request->alasan);
+        }
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('tanggal', '>=', $request->date_from);
+        }
+
+        if ($request->filled('date_to')) {
+            $query->whereDate('tanggal', '<=', $request->date_to);
+        }
+
+        $query->orderBy('tanggal', 'desc')->orderBy('id', 'desc');
+
+        $perPage = min(max((int) $request->get('per_page', 15), 1), 100);
+        $movements = $query->paginate($perPage);
+
+        return response()->json([
+            'data' => ApiResource::collection($movements->items()),
+            'meta' => [
+                'current_page' => $movements->currentPage(),
+                'per_page' => $movements->perPage(),
+                'total' => $movements->total(),
+                'last_page' => $movements->lastPage(),
+                'from' => $movements->firstItem(),
+                'to' => $movements->lastItem(),
+            ],
+            'links' => [
+                'first' => $movements->url(1),
+                'last' => $movements->url($movements->lastPage()),
+                'prev' => $movements->previousPageUrl(),
+                'next' => $movements->nextPageUrl(),
+            ],
+        ]);
+    }
+
+    /**
+     * Manual adjustment for pastry product stock.
+     */
+    public function adjustStock(Request $request): JsonResponse
+    {
+        $user = $request->user();
+        $userId = $user ? $user->id : 1;
+
+        $validated = $request->validate([
+            'lokasi_id' => 'required|exists:lokasi,id',
+            'produk_id' => 'required|exists:produk,id',
+            'quantity' => 'required|integer|not_in:0',
+            'alasan' => [
+                'required',
+                Rule::in([
+                    ProdukLokasiPergerakan::ALASAN_RUSAK,
+                    ProdukLokasiPergerakan::ALASAN_KONSUMSI_OWNER,
+                    ProdukLokasiPergerakan::ALASAN_KOREKSI,
+                    ProdukLokasiPergerakan::ALASAN_LAINNYA,
+                ]),
+            ],
+            'keterangan' => 'nullable|string',
+        ]);
+
+        if ($validated['alasan'] === ProdukLokasiPergerakan::ALASAN_LAINNYA && empty(trim($validated['keterangan'] ?? ''))) {
+            return response()->json(['message' => 'Keterangan wajib diisi jika alasan Lainnya'], 422);
+        }
+
+        $lokasi = Lokasi::findOrFail($validated['lokasi_id']);
+        if ($lokasi->tipe !== 'toko') {
+            return response()->json(['message' => 'Lokasi harus berupa toko'], 400);
+        }
+
+        if (!Produk::belongsToStockDivision($validated['produk_id'], StockDivision::PASTRY)) {
+            return response()->json(['message' => 'Produk harus kategori pastry'], 422);
+        }
+
+        $alasanLabels = [
+            ProdukLokasiPergerakan::ALASAN_RUSAK => 'Rusak',
+            ProdukLokasiPergerakan::ALASAN_KONSUMSI_OWNER => 'Konsumsi owner',
+            ProdukLokasiPergerakan::ALASAN_KOREKSI => 'Koreksi',
+            ProdukLokasiPergerakan::ALASAN_LAINNYA => 'Lainnya',
+        ];
+
+        $keterangan = trim($validated['keterangan'] ?? '') !== ''
+            ? trim($validated['keterangan'])
+            : $alasanLabels[$validated['alasan']];
+
+        try {
+            return DB::transaction(function () use ($validated, $userId, $keterangan) {
+                $currentStock = ProdukLokasi::getQuantityAtLocation(
+                    $validated['lokasi_id'],
+                    $validated['produk_id'],
+                );
+
+                $movement = ProdukStockMovement::recordAdjustment(
+                    $validated['lokasi_id'],
+                    $validated['produk_id'],
+                    $validated['quantity'],
+                    $validated['alasan'],
+                    $keterangan,
+                    $userId,
+                );
+
+                return response()->json([
+                    'message' => 'Adjustment stok produk berhasil dilakukan',
+                    'data' => [
+                        'movement' => $movement->load(['lokasi', 'produk', 'user']),
+                        'stok_sebelum' => $currentStock,
+                        'stok_sesudah' => $movement->quantity_after,
+                    ],
+                ], 201);
+            });
+        } catch (\RuntimeException $e) {
+            return response()->json(['message' => $e->getMessage()], 400);
+        } catch (\Throwable $e) {
+            return response()->json([
+                'message' => 'Gagal melakukan adjustment stok produk',
+                'error' => $e->getMessage(),
             ], 500);
         }
     }

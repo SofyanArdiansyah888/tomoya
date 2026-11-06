@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class ShiftKasir extends Model
 {
+    use \App\Traits\HasSyncUuid;
+
     use HasFactory;
 
     protected $table = 'shift_kasir';
@@ -65,14 +67,7 @@ class ShiftKasir extends Model
 
     public static function generateNoShiftKasir(): string
     {
-        $date = now()->format('Ymd');
-        $lastShiftKasir = self::whereDate('created_at', today())
-            ->orderBy('id', 'desc')
-            ->first();
-        
-        $sequence = $lastShiftKasir ? (int) substr($lastShiftKasir->no_shift_kasir, -4) + 1 : 1;
-        
-        return 'SHF-' . $date . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+        return \App\Support\DocumentNumber::daily(self::class, 'no_shift_kasir', 'SHF');
     }
 
     // Relations
@@ -114,7 +109,7 @@ class ShiftKasir extends Model
     // Scopes
     public function scopeOpen($query)
     {
-        return $query->where('status', 'open');
+        return $query->where('status', 'open')->where('origin', \App\Support\SyncNode::code());
     }
 
     public function scopeClosed($query)
@@ -139,7 +134,7 @@ class ShiftKasir extends Model
     {
         $query = self::query()
             ->where('lokasi_id', $lokasiId)
-            ->where('status', 'open'); 
+            ->where('status', 'open')->where('origin', \App\Support\SyncNode::code()); 
 
         if ($userId) {
             $userShift = (clone $query)->where('user_id', $userId)->orderByDesc('id')->first();

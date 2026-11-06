@@ -38,6 +38,10 @@ class MaterialController extends Controller
         if ($request->has('supplier_id') && $request->supplier_id) {
             $query->where('supplier_id', $request->supplier_id);
         }
+ 
+        if ($request->filled('stock_division') && \App\Support\StockDivision::isValidDivision($request->stock_division)) {
+            $query->stockDivision($request->stock_division);
+        }
 
         $query->orderBy('name', 'asc');
         $materials = $query->get();

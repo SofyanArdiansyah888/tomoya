@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Pembelian extends Model
 {
+    use \App\Traits\HasSyncUuid;
+
     protected $table = 'pembelian';
     
     protected $fillable = [
@@ -40,14 +42,7 @@ class Pembelian extends Model
 
     public static function generateNoPembelian(): string
     {
-        $date = now()->format('Ymd');
-        $lastPembelian = self::whereDate('created_at', today())
-            ->orderBy('id', 'desc')
-            ->first();
-        
-        $sequence = $lastPembelian ? (int) substr($lastPembelian->no_pembelian, -4) + 1 : 1;
-        
-        return 'PBL-' . $date . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+        return \App\Support\DocumentNumber::daily(self::class, 'no_pembelian', 'PBL');
     }
 
     public function user(): BelongsTo

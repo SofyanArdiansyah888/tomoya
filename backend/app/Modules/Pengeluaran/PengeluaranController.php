@@ -99,7 +99,7 @@ class PengeluaranController extends Controller
             // Cek apakah ada shift aktif untuk user dan lokasi
             $shiftAktif = \App\Models\ShiftKasir::where('user_id', $dataToCreate['user_id'])
                 ->where('lokasi_id', $lokasiId)
-                ->where('status', 'open')
+                ->where('status', 'open')->where('origin', \App\Support\SyncNode::code())
                 ->first();
 
             if ($shiftAktif) {

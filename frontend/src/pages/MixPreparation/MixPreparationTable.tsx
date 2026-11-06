@@ -1,16 +1,19 @@
 import { Eye } from 'lucide-react'
 import { Card, CardContent } from '../../components/ui/card'
+import { MixPreparationHeader } from '../../services/mixPreparation'
 
-interface MixPreparationHeader {
-  id: number
-  lokasi_id: number
-  output_material_id: number
-  output_quantity: number
-  keterangan?: string
-  tanggal: string
-  output_material?: { id: number; name: string; sku: string; unit: string }
-  lokasi?: { id: number; nama: string; tipe: 'gudang' | 'toko' }
-  user?: { id: number; name: string; email?: string }
+function getOutputName(item: MixPreparationHeader): string {
+  if (item.output_type === 'produk' || item.output_produk_id) {
+    return item.output_produk?.nama || '-'
+  }
+  return item.output_material?.name || '-'
+}
+
+function getOutputUnit(item: MixPreparationHeader): string {
+  if (item.output_type === 'produk' || item.output_produk_id) {
+    return 'pcs'
+  }
+  return item.output_material?.unit || ''
 }
 
 interface MixPreparationTableProps {
@@ -34,15 +37,15 @@ export const MixPreparationTable = ({ items, isLoading, onViewDetail }: MixPrepa
 
   return (
     <Card>
-      
       <CardContent className="p-0">
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b">
               <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Nomor</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Tanggal</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lokasi</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Material Hasil</th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Hasil</th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Jumlah Hasil</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Keterangan</th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">User</th>
@@ -52,12 +55,17 @@ export const MixPreparationTable = ({ items, isLoading, onViewDetail }: MixPrepa
             <tbody className="bg-white divide-y divide-gray-200">
               {items.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {item.no_mix_preparation}
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     {new Date(item.tanggal).toLocaleString('id-ID')}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.lokasi?.nama || 'Toko'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{item.output_material?.name || '-'}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">{item.output_quantity} {item.output_material?.unit || ''}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">{getOutputName(item)}</td>
+                  <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-semibold text-gray-900">
+                    {item.output_quantity} {getOutputUnit(item)}
+                  </td>
                   <td className="px-6 py-4">
                     <div className="text-sm text-gray-600 max-w-xs truncate">{item.keterangan || '-'}</div>
                   </td>

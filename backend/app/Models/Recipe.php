@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Recipe extends Model
 {
+    use \App\Traits\HasSyncUuid;
+
     protected $table = 'recipes';
     
     protected $fillable = [

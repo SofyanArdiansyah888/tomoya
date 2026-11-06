@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Pesanan extends Model
 {
+    use \App\Traits\HasSyncUuid;
+
     protected $table = 'pesanan';
     
     protected $guarded = [];
@@ -42,14 +44,7 @@ class Pesanan extends Model
 
     public static function generateNoPesanan(): string
     {
-        $date = now()->format('Ymd');
-        $lastPesanan = self::whereDate('created_at', today())
-            ->orderBy('id', 'desc')
-            ->first();
-        
-        $sequence = $lastPesanan ? (int) substr($lastPesanan->no_pesanan, -4) + 1 : 1;
-        
-        return 'PSN-' . $date . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+        return \App\Support\DocumentNumber::daily(self::class, 'no_pesanan', 'PSN');
     }
 
     public function user(): BelongsTo

@@ -25,7 +25,7 @@ class ShiftKasirController extends Controller
 
         // Validasi: tidak boleh ada shift open di lokasi yang sama
         $existingShift = ShiftKasir::where('lokasi_id', $request->lokasi_id)
-            ->where('status', 'open')
+            ->where('status', 'open')->where('origin', \App\Support\SyncNode::code())
             ->first();
 
         if ($existingShift) {
@@ -139,12 +139,12 @@ class ShiftKasirController extends Controller
         } else {
             // Tanpa lokasi_id: cari shift open user dulu, lalu shift open terbaru di semua lokasi
             $shift = ShiftKasir::where('user_id', $userId)
-                ->where('status', 'open')
+                ->where('status', 'open')->where('origin', \App\Support\SyncNode::code())
                 ->orderByDesc('id')
                 ->first();
 
             if (!$shift) {
-                $shift = ShiftKasir::where('status', 'open')
+                $shift = ShiftKasir::where('status', 'open')->where('origin', \App\Support\SyncNode::code())
                     ->orderByDesc('id')
                     ->first();
             }

@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '../ui/select-primitives'
 import { SelectSearchField, selectContentSearchProps } from '../ui/SelectSearchField'
 import { productService } from '../../services/products'
+import { StockDivision } from '../../lib/stockDivision'
 
 interface ProdukSelectProps {
   value: string
@@ -11,7 +12,11 @@ interface ProdukSelectProps {
   required?: boolean
   disabled?: boolean
   className?: string
-  searchable?: boolean
+  searchable?: boolean 
+  stockable?: boolean
+  stockDivision?: StockDivision
+  showAllOption?: boolean
+  allOptionLabel?: string
 }
 
 export const ProdukSelect = ({ 
@@ -20,29 +25,48 @@ export const ProdukSelect = ({
   placeholder = "Pilih produk", 
   disabled = false,
   className = "",
-  searchable = true
+  searchable = true,
+  stockable,
+  stockDivision,
+  showAllOption = false,
+  allOptionLabel = "Semua Produk",
 }: ProdukSelectProps) => {
   const [searchTerm, _] = useState('')
   const [localSearchTerm, setLocalSearchTerm] = useState('')
 
   const { data: products, isLoading } = useQuery({
-    queryKey: ['products', { search: searchTerm }],
-    queryFn: () => productService.getProducts({ search: searchTerm })
+    queryKey: ['products', { search: searchTerm, stockable, stockDivision }],
+    queryFn: () => productService.getProducts({
+      search: searchTerm,
+      ...(stockable !== undefined ? { stockable } : {}),
+      ...(stockDivision ? { stock_division: stockDivision } : {}),
+    })
   })
-
-  // Filter products based on local search term (for additional client-side filtering)
+ 
+  // Filter products based on local search term (client-side search only; division filter handled by API)
   const filteredProducts = useMemo(() => {
-    if (!searchable || !localSearchTerm) return products?.data || []
-    return products?.data?.filter(product =>
+    const list = products?.data || []
+    if (!searchable || !localSearchTerm) return list
+    return list.filter(product =>
       product.nama.toLowerCase().includes(localSearchTerm.toLowerCase()) ||
       product.kode.toLowerCase().includes(localSearchTerm.toLowerCase())
-    ) || []
+    )
   }, [products?.data, localSearchTerm, searchable])
+
+  const ALL_VALUE = "__all__"
+
+  const handleValueChange = (selectedValue: string) => {
+    if (showAllOption && selectedValue === ALL_VALUE) {
+      onChange('')
+    } else {
+      onChange(selectedValue)
+    }
+  }
 
   return (
     <Select
-      value={value}
-      onValueChange={onChange}
+      value={value !== '' ? value : (showAllOption ? ALL_VALUE : '')}
+      onValueChange={handleValueChange}
       disabled={disabled || isLoading}
     >
       <SelectTrigger className={className}>
@@ -66,14 +90,21 @@ export const ProdukSelect = ({
             {searchable && localSearchTerm ? "Tidak ada hasil" : "Tidak ada produk"}
           </div>
         ) : (
-          filteredProducts.map((product) => (
+          <>
+            {showAllOption && (
+              <SelectItem value={ALL_VALUE}>
+                {allOptionLabel}
+              </SelectItem>
+            )}
+            {filteredProducts.map((product) => (
             <SelectItem
               key={product.id}
               value={product.id.toString()}
             >
               {product.nama} - {product.kode}
             </SelectItem>
-          ))
+          ))}
+          </>
         )}
       </SelectContent>
     </Select>

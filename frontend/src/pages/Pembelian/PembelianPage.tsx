@@ -128,6 +128,9 @@ export const PembelianPage = () => {
     createPurchaseMutation.mutate(data, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: ['purchases'] })
+        queryClient.invalidateQueries({ queryKey: ['item-lokasi-gudang'] })
+        queryClient.invalidateQueries({ queryKey: ['item-lokasi-toko'] })
+        queryClient.invalidateQueries({ queryKey: ['stock-movements'] })
         toast.success('Pembelian berhasil ditambahkan!')
         setIsModalOpen(false)
         setEditingPurchase(null)

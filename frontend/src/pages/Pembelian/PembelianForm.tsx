@@ -47,7 +47,7 @@ export const PembelianForm = ({
 
   const [formData, setFormData] = useState({
     supplier_id: 0,
-    lokasi_id: '1', // Default to gudang (id: 1)
+    lokasi_id: '1',
     tanggal_pembelian: new Date().toISOString().split('T')[0],
     catatan: '',
     metode_pembayaran: 'cash' as 'cash' | 'transfer',
@@ -77,7 +77,7 @@ export const PembelianForm = ({
     } else {
       setFormData({
         supplier_id: 0,
-        lokasi_id: '1', // Default to gudang (id: 1)
+        lokasi_id: '1',
         tanggal_pembelian: new Date().toISOString().split('T')[0],
         catatan: '',
         metode_pembayaran: 'cash',

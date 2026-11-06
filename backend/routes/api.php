@@ -24,6 +24,8 @@ use App\Modules\Pembelian\PembelianController;
 use App\Modules\ShiftKasir\ShiftKasirController;
 use App\Modules\Hpp\HppController;
 use App\Modules\Hpp\HppPenjualanController;
+use App\Modules\Sync\SyncController;
+use App\Modules\Sync\SyncTokenMiddleware;
 
 
 /*
@@ -43,11 +45,21 @@ Route::post('/login', [AutentikasiController::class, 'login']);
  
 Route::get('/public/pesanan/terbaru', [PesananController::class, 'publicLatest']);
 
+// Sinkronisasi antar-server (PC kasir <-> cloud), autentikasi dengan SYNC_TOKEN
+Route::prefix('sync')->middleware(SyncTokenMiddleware::class)->group(function () {
+    Route::get('ping', [SyncController::class, 'ping']);
+    Route::post('push', [SyncController::class, 'push']);
+    Route::post('pull', [SyncController::class, 'pull']);
+});
+
 // Protected routes
 Route::middleware(['auth:sanctum', 'api.auth'])->group(function () {
     // User routes 
     Route::get('/user', [AutentikasiController::class, 'me']);
     Route::post('/logout', [AutentikasiController::class, 'logout']);
+
+    // Status sinkronisasi untuk indikator di UI
+    Route::get('sync/status', [SyncController::class, 'status']);
 
     // Kategori API
     Route::apiResource('kategori', KategoriController::class);
@@ -67,10 +79,13 @@ Route::middleware(['auth:sanctum', 'api.auth'])->group(function () {
     Route::apiResource('lokasi', LokasiController::class);
     Route::get('lokasi/gudang', [LokasiController::class, 'gudang']);
     Route::get('lokasi/toko', [LokasiController::class, 'toko']);
-
-    // Produk Lokasi API
+ 
+    // Produk Lokasi API 
     Route::get('produk-lokasi/stock-by-recipe', [ProdukLokasiController::class, 'getProductStockByRecipe']);
     Route::get('produk-lokasi/low-stock', [ProdukLokasiController::class, 'lowStock']);
+    Route::get('produk-lokasi/current-stock', [ProdukLokasiController::class, 'getCurrentStock']);
+    Route::get('produk-lokasi/pergerakan', [ProdukLokasiController::class, 'getPergerakan']);
+    Route::post('produk-lokasi/adjust', [ProdukLokasiController::class, 'adjustStock']);
     Route::apiResource('produk-lokasi', ProdukLokasiController::class);
 
     // Item Lokasi API (Material Stock)

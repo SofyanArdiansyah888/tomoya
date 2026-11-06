@@ -29,6 +29,9 @@ export const useCreatePurchase = () => {
       queryClient.invalidateQueries({ queryKey: ['purchases'] })
       queryClient.invalidateQueries({ queryKey: ['products'] })
       queryClient.invalidateQueries({ queryKey: ['cash-flows'] })
+      queryClient.invalidateQueries({ queryKey: ['item-lokasi-gudang'] })
+      queryClient.invalidateQueries({ queryKey: ['item-lokasi-toko'] })
+      queryClient.invalidateQueries({ queryKey: ['stock-movements'] })
       toast.success('Pembelian berhasil dibuat!')
     },
     onError: (error: any) => {

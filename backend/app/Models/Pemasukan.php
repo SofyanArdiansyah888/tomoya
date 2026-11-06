@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Pemasukan extends Model
 {
+    use \App\Traits\HasSyncUuid;
+
     use HasFactory;
 
     protected $table = 'pemasukans';
@@ -48,14 +50,7 @@ class Pemasukan extends Model
 
     public static function generateNoPemasukan(): string
     {
-        $date = now()->format('Ymd');
-        $lastPemasukan = self::whereDate('created_at', today())
-            ->orderBy('id', 'desc')
-            ->first();
-        
-        $sequence = $lastPemasukan ? (int) substr($lastPemasukan->no_pemasukan, -4) + 1 : 1;
-        
-        return 'PMS-' . $date . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+        return \App\Support\DocumentNumber::daily(self::class, 'no_pemasukan', 'PMS');
     }
 
     // Relations
