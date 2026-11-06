@@ -130,8 +130,12 @@ class ProdukController extends Controller
             DB::transaction(function () use ($produkId) {
                 DB::table('produk_lokasi')->where('produk_id', $produkId)->delete();
                 // Bersihkan item pesanan yatim (pesanan sudah tidak ada)
-                DB::table('item_pesanan')->where('produk_id', $produkId)->delete();
-                DB::table('produk')->where('id', $produkId)->delete();
+                $itemQuery = DB::table('item_pesanan')->where('produk_id', $produkId);
+                \App\Modules\Sync\Tombstone::recordQuery('item_pesanan', $itemQuery);
+                $itemQuery->delete();
+                $produkQuery = DB::table('produk')->where('id', $produkId);
+                \App\Modules\Sync\Tombstone::recordQuery('produk', $produkQuery);
+                $produkQuery->delete();
             });
 
             return response()->json(null, 204);

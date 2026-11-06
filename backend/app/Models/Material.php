@@ -11,6 +11,8 @@ use App\Models\ItemLokasi;
 
 class Material extends Model
 {
+    use \App\Traits\HasSyncUuid;
+
     protected $table = 'material';
 
     protected $guarded = [];

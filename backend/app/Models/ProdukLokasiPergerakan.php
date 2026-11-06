@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class ProdukLokasiPergerakan extends Model 
 {
+    use \App\Traits\HasSyncUuid;
+
     protected $table = 'produk_lokasi_pergerakan';
 
     public const TIPE_MASUK = 'masuk';

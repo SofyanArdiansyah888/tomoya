@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class Kategori extends Model
 {
+    use \App\Traits\HasSyncUuid;
+
     protected $table = 'kategori';
     
     protected $fillable = [

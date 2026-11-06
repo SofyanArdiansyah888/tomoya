@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ItemPesanan extends Model
 {
+    use \App\Traits\HasSyncUuid;
+
     protected $table = 'item_pesanan';
     
     protected $fillable = [

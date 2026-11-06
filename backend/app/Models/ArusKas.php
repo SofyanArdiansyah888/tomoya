@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ArusKas extends Model
 {
+    use \App\Traits\HasSyncUuid;
+
     use HasFactory;
 
     protected $table = 'arus_kas';
@@ -37,14 +39,7 @@ class ArusKas extends Model
 
     public static function generateNoArusKas(): string
     {
-        $date = now()->format('Ymd');
-        $lastArusKas = self::whereDate('created_at', today())
-            ->orderBy('id', 'desc')
-            ->first();
-        
-        $sequence = $lastArusKas ? (int) substr($lastArusKas->no_arus_kas, -4) + 1 : 1;
-        
-        return 'AK-' . $date . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+        return \App\Support\DocumentNumber::daily(self::class, 'no_arus_kas', 'AK');
     }
 
     // Relations

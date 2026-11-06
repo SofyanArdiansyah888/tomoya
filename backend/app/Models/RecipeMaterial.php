@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class RecipeMaterial extends Model
 {
+    use \App\Traits\HasSyncUuid;
+
     protected $table = 'recipe_materials';
     
     protected $fillable = [

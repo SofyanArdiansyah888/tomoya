@@ -670,7 +670,7 @@ class PesananController extends Controller
             if ($pesanan->payment_status === 'belum_bayar' && $structureChanged) {
                 $this->reverseOrderStockMovements($pesanan, $userId);
 
-                $pesanan->itemPesanan()->delete();
+                $pesanan->itemPesanan()->get()->each->delete();
 
                 $totalJumlah = collect($request->items)->sum(function ($item) {
                     return $item['quantity'] * $item['harga_satuan'];

@@ -8,6 +8,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Pengeluaran extends Model
 {
+    use \App\Traits\HasSyncUuid;
+
     use HasFactory;
 
     protected $table = 'pengeluaran';
@@ -48,14 +50,7 @@ class Pengeluaran extends Model
 
     public static function generateNoPengeluaran(): string
     {
-        $date = now()->format('Ymd');
-        $lastPengeluaran = self::whereDate('created_at', today())
-            ->orderBy('id', 'desc')
-            ->first();
-        
-        $sequence = $lastPengeluaran ? (int) substr($lastPengeluaran->no_pengeluaran, -4) + 1 : 1;
-        
-        return 'PGL-' . $date . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+        return \App\Support\DocumentNumber::daily(self::class, 'no_pengeluaran', 'PGL');
     }
 
     // Relations

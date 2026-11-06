@@ -15,6 +15,14 @@ return Application::configure(basePath: dirname(__DIR__))
         // Required for Cloudflare Tunnel / reverse proxy HTTPS detection
         $middleware->trustProxies(at: '*');
  
+        // Data sinkron harus diterima apa adanya (string kosong & spasi tidak boleh diubah).
+        $middleware->convertEmptyStringsToNull(except: [
+            fn ($request) => $request->is('api/sync/*'),
+        ]);
+        $middleware->trimStrings(except: [
+            fn ($request) => $request->is('api/sync/*'),
+        ]);
+
         $middleware->alias([
             'api.auth' => \App\Http\Middleware\ApiAuth::class,
         ]);

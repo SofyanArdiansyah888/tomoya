@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class MixPreparation extends Model
 {
+    use \App\Traits\HasSyncUuid;
+
     protected $table = 'mix_preparation';
 
     protected $fillable = [
@@ -39,14 +41,7 @@ class MixPreparation extends Model
 
     public static function generateNoMixPreparation(): string
     {
-        $date = now()->format('Ymd');
-        $last = self::whereDate('created_at', today())
-            ->orderBy('id', 'desc')
-            ->first();
-
-        $sequence = $last ? (int) substr($last->no_mix_preparation, -4) + 1 : 1;
-
-        return 'MIX-' . $date . '-' . str_pad((string) $sequence, 4, '0', STR_PAD_LEFT);
+        return \App\Support\DocumentNumber::daily(self::class, 'no_mix_preparation', 'MIX');
     }
 
     public function lokasi(): BelongsTo

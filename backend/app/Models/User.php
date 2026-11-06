@@ -10,6 +10,8 @@ use Laravel\Sanctum\HasApiTokens;
 
 class User extends Authenticatable
 {
+    use \App\Traits\HasSyncUuid;
+
     /** @use HasFactory<\Database\Factories\UserFactory> */
     use HasFactory, Notifiable, HasApiTokens;
 

@@ -9,6 +9,8 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 
 class MasterKas extends Model
 {
+    use \App\Traits\HasSyncUuid;
+
     use HasFactory;
 
     protected $table = 'master_kas';
@@ -38,14 +40,7 @@ class MasterKas extends Model
 
     public static function generateNoMasterKas(): string
     {
-        $date = now()->format('Ymd');
-        $last = self::whereDate('created_at', today())
-            ->orderBy('id', 'desc')
-            ->first();
-
-        $sequence = $last ? (int) substr($last->no_master_kas, -4) + 1 : 1;
-
-        return 'MK-' . $date . '-' . str_pad($sequence, 4, '0', STR_PAD_LEFT);
+        return \App\Support\DocumentNumber::daily(self::class, 'no_master_kas', 'MK');
     }
 
     public function user(): BelongsTo

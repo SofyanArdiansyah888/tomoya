@@ -7,6 +7,8 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class ProdukLokasi extends Model
 {
+    use \App\Traits\HasSyncUuid;
+
     protected $table = 'produk_lokasi';
     
     protected $fillable = [
